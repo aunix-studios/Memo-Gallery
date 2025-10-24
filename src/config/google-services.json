@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "754328524443",
+    "firebase_url": "https://memo-gallery-9d355-default-rtdb.firebaseio.com",
+    "project_id": "memo-gallery-9d355",
+    "storage_bucket": "memo-gallery-9d355.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:754328524443:android:0f8dd9ff2e1b1d5966183e",
+        "android_client_info": {
+          "package_name": "com.aunix.memogallery.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "754328524443-v8jffqsf16e4bgmq4rk5v9n2jf04cudr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCF2BoHdQz3rz7UePJCUEML0a74L205D1s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "754328524443-v8jffqsf16e4bgmq4rk5v9n2jf04cudr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
