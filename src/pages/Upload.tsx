@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Upload as UploadIcon, Plus, Loader2, X } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, Plus, Loader2, X, Camera } from 'lucide-react';
 import { saveImage, saveCategory, getAllCategories, updateCategoryCounts } from '@/lib/indexedDB';
 import { toast } from 'sonner';
 
@@ -31,10 +31,25 @@ export default function Upload() {
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [previews, setPreviews] = useState<PreviewImage[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [cameraMode, setCameraMode] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     loadCategories();
-  }, []);
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
+  useEffect(() => {
+    if (cameraMode && videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [cameraMode, stream]);
 
   const loadCategories = async () => {
     const cats = await getAllCategories();
@@ -72,6 +87,67 @@ export default function Upload() {
     setPreviews((prev) => [...prev, ...newPreviews]);
   };
 
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      setStream(mediaStream);
+      setCameraMode(true);
+      toast.success('Camera ready!');
+    } catch (error) {
+      toast.error('Camera access denied. Please allow camera permissions.');
+      console.error('Camera error:', error);
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setCameraMode(false);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0);
+    
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+        
+        const img = new Image();
+        img.onload = () => {
+          setPreviews((prev) => [
+            ...prev,
+            {
+              id: Math.random().toString(36).substr(2, 9),
+              file,
+              preview: url,
+              width: img.width,
+              height: img.height,
+            },
+          ]);
+          stopCamera();
+          toast.success('Photo captured!');
+        };
+        img.src = url;
+      }
+    }, 'image/jpeg', 0.95);
+  };
+
   const removePreview = (id: string) => {
     setPreviews((prev) => prev.filter((p) => p.id !== id));
   };
@@ -79,7 +155,7 @@ export default function Upload() {
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) return;
 
-    const colors = ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#EF4444'];
+    const colors = ['#8B5CF6', '#7C3AED', '#6D28D9', '#5B21B6', '#4C1D95'];
     const color = colors[Math.floor(Math.random() * colors.length)];
     const id = newCategoryName.toLowerCase().replace(/\s+/g, '-');
 
@@ -127,6 +203,41 @@ export default function Upload() {
     }
   };
 
+  if (cameraMode) {
+    return (
+      <div className="min-h-screen bg-black">
+        <div className="relative h-screen">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+          />
+          <canvas ref={canvasRef} className="hidden" />
+          
+          <Button
+            onClick={stopCamera}
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 left-4 glass text-white hover:bg-white/20"
+          >
+            <X className="h-6 w-6" />
+          </Button>
+
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4">
+            <Button
+              onClick={capturePhoto}
+              size="lg"
+              className="h-20 w-20 rounded-full animated-gradient hover:scale-110 transition-smooth shadow-2xl"
+            >
+              <Camera className="h-8 w-8" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pb-20">
       <header className="glass border-b border-border sticky top-0 z-50">
@@ -157,6 +268,7 @@ export default function Upload() {
                       variant={selectedCategory === cat.id ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setSelectedCategory(cat.id)}
+                      className="transition-smooth hover:scale-105"
                       style={{
                         backgroundColor: selectedCategory === cat.id ? cat.color : 'transparent',
                         borderColor: cat.color,
@@ -169,6 +281,7 @@ export default function Upload() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowNewCategory(!showNewCategory)}
+                    className="transition-smooth hover:scale-105"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     New
@@ -185,7 +298,7 @@ export default function Upload() {
               )}
 
               {showNewCategory && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 animate-fade-in">
                   <Input
                     placeholder="Category name"
                     value={newCategoryName}
@@ -197,28 +310,41 @@ export default function Upload() {
               )}
             </div>
 
-            {/* File Input */}
+            {/* Upload Options */}
             <div className="space-y-3">
-              <Label>Select Photos</Label>
-              <div className="border-2 border-dashed border-primary/50 rounded-lg p-8 text-center hover:border-primary transition-smooth cursor-pointer">
-                <label className="cursor-pointer">
-                  <UploadIcon className="h-12 w-12 text-primary mx-auto mb-4" />
-                  <p className="text-lg font-medium mb-2">Click to select photos</p>
-                  <p className="text-sm text-muted-foreground">or drag and drop</p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-                </label>
+              <Label>Add Photos</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* File Upload */}
+                <div className="border-2 border-dashed border-primary/50 rounded-lg p-6 text-center hover:border-primary hover:scale-105 transition-smooth cursor-pointer bg-card/50">
+                  <label className="cursor-pointer">
+                    <UploadIcon className="h-10 w-10 text-primary mx-auto mb-3" />
+                    <p className="font-medium mb-1">Upload Files</p>
+                    <p className="text-xs text-muted-foreground">From device</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleFileSelect}
+                    />
+                  </label>
+                </div>
+
+                {/* Camera */}
+                <div 
+                  className="border-2 border-dashed border-primary/50 rounded-lg p-6 text-center hover:border-primary hover:scale-105 transition-smooth cursor-pointer bg-card/50"
+                  onClick={startCamera}
+                >
+                  <Camera className="h-10 w-10 text-primary mx-auto mb-3" />
+                  <p className="font-medium mb-1">Take Photo</p>
+                  <p className="text-xs text-muted-foreground">Use camera</p>
+                </div>
               </div>
             </div>
 
             {/* Previews */}
             {previews.length > 0 && (
-              <div>
+              <div className="animate-fade-in">
                 <Label className="mb-3 block">Selected Photos ({previews.length})</Label>
                 <div className="grid grid-cols-3 gap-3">
                   {previews.map((preview) => (
@@ -226,11 +352,11 @@ export default function Upload() {
                       <img
                         src={preview.preview}
                         alt=""
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-smooth group-hover:scale-110"
                       />
                       <button
                         onClick={() => removePreview(preview.id)}
-                        className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-smooth"
+                        className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-smooth hover:scale-110"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -244,7 +370,7 @@ export default function Upload() {
             <Button
               onClick={handleUpload}
               disabled={uploading || previews.length === 0 || !selectedCategory}
-              className="w-full animated-gradient"
+              className="w-full animated-gradient hover:scale-105 transition-smooth"
               size="lg"
             >
               {uploading ? (

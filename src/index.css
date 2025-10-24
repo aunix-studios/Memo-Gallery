@@ -8,40 +8,40 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Black & Purple Gallery Theme */
-    --background: 0 0% 4%;
-    --foreground: 280 100% 98%;
+    /* Pure Black & Purple Theme */
+    --background: 0 0% 0%;
+    --foreground: 270 100% 98%;
 
-    --card: 280 20% 8%;
-    --card-foreground: 280 100% 98%;
+    --card: 270 30% 8%;
+    --card-foreground: 270 100% 98%;
 
-    --popover: 280 25% 6%;
-    --popover-foreground: 280 100% 98%;
+    --popover: 270 40% 6%;
+    --popover-foreground: 270 100% 98%;
 
-    --primary: 270 95% 65%;
+    --primary: 270 100% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 280 20% 15%;
-    --secondary-foreground: 280 100% 98%;
+    --secondary: 270 30% 12%;
+    --secondary-foreground: 270 100% 98%;
 
-    --muted: 280 15% 12%;
-    --muted-foreground: 280 20% 65%;
+    --muted: 270 20% 10%;
+    --muted-foreground: 270 30% 60%;
 
-    --accent: 280 80% 70%;
+    --accent: 270 90% 65%;
     --accent-foreground: 0 0% 0%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 280 20% 20%;
-    --input: 280 20% 15%;
-    --ring: 270 95% 65%;
+    --border: 270 30% 20%;
+    --input: 270 30% 12%;
+    --ring: 270 100% 60%;
 
     --radius: 0.75rem;
 
-    /* Custom Gallery Colors */
-    --gradient-start: 270 95% 65%;
-    --gradient-end: 330 85% 60%;
+    /* Pure Purple Gradients */
+    --gradient-start: 270 100% 60%;
+    --gradient-end: 270 80% 40%;
     --overlay: 0 0% 0%;
   }
 }
@@ -53,7 +53,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(280 20% 6%) 100%);
+    background: linear-gradient(135deg, hsl(0 0% 0%) 0%, hsl(270 40% 8%) 100%);
     min-height: 100vh;
   }
 

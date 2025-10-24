@@ -13,10 +13,12 @@ import {
   Grid3x3,
   CheckSquare,
   X,
+  Eye,
 } from 'lucide-react';
 import { getAllImages, getAllCategories, deleteImages } from '@/lib/indexedDB';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
+import ImageViewer from '@/components/ImageViewer';
 
 interface ImageData {
   id: string;
@@ -45,6 +47,8 @@ export default function Gallery() {
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -85,6 +89,13 @@ export default function Gallery() {
       newSelection.add(id);
     }
     setSelectedImages(newSelection);
+  };
+
+  const handleImageClick = (index: number) => {
+    if (!selectionMode) {
+      setViewerIndex(index);
+      setViewerOpen(true);
+    }
   };
 
   const handleDeleteSelected = async () => {
@@ -284,29 +295,34 @@ export default function Gallery() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredImages.map((img) => {
+            {filteredImages.map((img, index) => {
               const isSelected = selectedImages.has(img.id);
               const url = URL.createObjectURL(img.blob);
               
               return (
                 <div
                   key={img.id}
-                  className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-smooth hover:scale-105 ${
+                  className={`group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-smooth hover:scale-105 hover:shadow-2xl hover:shadow-primary/50 ${
                     isSelected ? 'ring-4 ring-primary' : ''
                   }`}
-                  onClick={() => selectionMode && toggleImageSelection(img.id)}
+                  onClick={() => selectionMode ? toggleImageSelection(img.id) : handleImageClick(index)}
                 >
                   <img
                     src={url}
                     alt=""
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-smooth"
                   />
+                  {!selectionMode && (
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-smooth flex items-center justify-center">
+                      <Eye className="h-8 w-8 text-white" />
+                    </div>
+                  )}
                   {selectionMode && (
                     <div className="absolute top-2 right-2">
                       <div
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-smooth ${
                           isSelected
-                            ? 'bg-primary border-primary'
+                            ? 'bg-primary border-primary scale-110'
                             : 'bg-black/50 border-white'
                         }`}
                       >
@@ -320,6 +336,14 @@ export default function Gallery() {
           </div>
         )}
       </div>
+
+      {viewerOpen && (
+        <ImageViewer
+          images={filteredImages}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
     </div>
   );
 }
