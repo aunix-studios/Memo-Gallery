@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Upload as UploadIcon, Plus, Loader2, X, Camera } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, Plus, Loader2, X, Camera, RefreshCw } from 'lucide-react';
 import { saveImage, saveCategory, getAllCategories, updateCategoryCounts } from '@/lib/indexedDB';
 import { toast } from 'sonner';
 
@@ -250,9 +250,10 @@ export default function Upload() {
             onClick={flipCamera}
             variant="ghost"
             size="icon"
-            className="absolute top-4 right-4 glass text-white hover:bg-white/20"
+            className="absolute top-4 right-4 glass text-white hover:bg-white/20 hover:scale-110 transition-smooth"
+            title="Flip Camera"
           >
-            <Camera className="h-6 w-6" />
+            <RefreshCw className="h-6 w-6" />
           </Button>
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4">
