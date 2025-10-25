@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface ImageViewerProps {
   images: Array<{ id: string; blob: Blob; category: string }>;
@@ -37,8 +38,37 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
     if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
   };
 
-  const handleNext = () => {
-    if (currentIndex < images.length - 1) setCurrentIndex(currentIndex + 1);
+  const handleNext = useCallback(() => {
+    if (currentIndex < images.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  }, [currentIndex, images.length]);
+
+  const handleShare = async () => {
+    try {
+      // Convert blob to file
+      const file = new File([currentImage.blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Share Photo',
+          text: 'Check out this photo from Memo Gallery!',
+        });
+        toast.success('Photo shared successfully!');
+      } else {
+        // Fallback: copy image to clipboard
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'image/jpeg': currentImage.blob,
+          }),
+        ]);
+        toast.success('Photo copied to clipboard!');
+      }
+    } catch (error) {
+      console.error('Share error:', error);
+      toast.error('Failed to share photo');
+    }
   };
 
   const handleZoomIn = () => setZoom(Math.min(zoom + 0.5, 4));
@@ -80,8 +110,8 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
           <span className="text-sm text-primary">• {currentImage.category}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={handleDownload}>
-            <Download className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={handleShare} className="hover:text-primary transition-smooth">
+            <Share2 className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon" onClick={handleZoomOut}>
             <ZoomOut className="h-5 w-5" />

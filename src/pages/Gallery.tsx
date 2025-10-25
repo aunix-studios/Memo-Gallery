@@ -1,19 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Camera,
   LogOut,
   Search,
   Trash2,
   Download,
-  Grid3x3,
   CheckSquare,
   X,
   Eye,
+  Book,
+  Globe,
 } from 'lucide-react';
 import { getAllImages, getAllCategories, deleteImages } from '@/lib/indexedDB';
 import { toast } from 'sonner';
@@ -40,6 +48,7 @@ interface Category {
 export default function Gallery() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { t, language, setLanguage, availableLanguages } = useLanguage();
   const [images, setImages] = useState<ImageData[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -174,12 +183,36 @@ export default function Gallery() {
               <div className="w-10 h-10 rounded-full animated-gradient flex items-center justify-center">
                 <Camera className="h-5 w-5 text-white" />
               </div>
-              <h1 className="text-2xl font-bold">Memo Gallery</h1>
+              <h1 className="text-2xl font-bold">{t('myGallery')}</h1>
             </div>
 
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => navigate('/how-to-use')} title={t('howToUse')}>
+                <Book className="h-5 w-5" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Globe className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="glass">
+                  {availableLanguages.map((lang) => (
+                    <DropdownMenuItem
+                      key={lang.code}
+                      onClick={() => setLanguage(lang.code)}
+                      className={language === lang.code ? 'bg-primary/20' : ''}
+                    >
+                      <span className="mr-2">{lang.flag}</span>
+                      {lang.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="ghost" size="icon" onClick={handleLogout}>
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -190,7 +223,7 @@ export default function Gallery() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by category..."
+              placeholder={t('searchPhotos')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-secondary/50"
@@ -202,10 +235,10 @@ export default function Gallery() {
             <div className="flex gap-2 flex-wrap">
               <Badge
                 variant={selectedCategory === null ? 'default' : 'outline'}
-                className="cursor-pointer transition-smooth"
+                className="cursor-pointer transition-smooth animated-gradient"
                 onClick={() => setSelectedCategory(null)}
               >
-                All ({images.length})
+                {t('allCategories')} ({images.length})
               </Badge>
               {categories.map((cat) => (
                 <Badge
@@ -235,7 +268,7 @@ export default function Gallery() {
                 onClick={() => setSelectionMode(true)}
               >
                 <CheckSquare className="h-4 w-4 mr-2" />
-                Select
+                {t('selectMultiple')}
               </Button>
             ) : (
               <>
@@ -248,7 +281,7 @@ export default function Gallery() {
                   }}
                 >
                   <X className="h-4 w-4 mr-2" />
-                  Cancel
+                  {t('cancel')}
                 </Button>
                 {selectedImages.size > 0 && (
                   <>
@@ -258,7 +291,7 @@ export default function Gallery() {
                       onClick={handleDownloadSelected}
                     >
                       <Download className="h-4 w-4 mr-2" />
-                      Download ({selectedImages.size})
+                      {t('downloadSelected')} ({selectedImages.size})
                     </Button>
                     <Button
                       variant="destructive"
@@ -266,7 +299,7 @@ export default function Gallery() {
                       onClick={handleDeleteSelected}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete ({selectedImages.size})
+                      {t('deleteSelected')} ({selectedImages.size})
                     </Button>
                   </>
                 )}
@@ -276,21 +309,21 @@ export default function Gallery() {
 
           <Button onClick={() => navigate('/upload')} className="animated-gradient">
             <Camera className="h-4 w-4 mr-2" />
-            Upload
+            {t('upload')}
           </Button>
         </div>
 
         {/* Gallery Grid */}
         {filteredImages.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="text-center py-20 animate-fade-in">
             <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-semibold mb-2">No images yet</h3>
+            <h3 className="text-xl font-semibold mb-2">{t('noImages')}</h3>
             <p className="text-muted-foreground mb-6">
-              Start uploading photos to build your collection
+              {t('startUploading')}
             </p>
             <Button onClick={() => navigate('/upload')} className="animated-gradient">
               <Camera className="h-4 w-4 mr-2" />
-              Upload Photos
+              {t('uploadPhotos')}
             </Button>
           </div>
         ) : (

@@ -33,6 +33,7 @@ export default function Upload() {
   const [uploading, setUploading] = useState(false);
   const [cameraMode, setCameraMode] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -90,7 +91,7 @@ export default function Upload() {
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: { facingMode },
         audio: false,
       });
       setStream(mediaStream);
@@ -99,6 +100,27 @@ export default function Upload() {
     } catch (error) {
       toast.error('Camera access denied. Please allow camera permissions.');
       console.error('Camera error:', error);
+    }
+  };
+
+  const flipCamera = async () => {
+    const newFacingMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(newFacingMode);
+    
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newFacingMode },
+        audio: false,
+      });
+      setStream(mediaStream);
+      toast.success('Camera flipped!');
+    } catch (error) {
+      toast.error('Failed to flip camera');
+      console.error('Camera flip error:', error);
     }
   };
 
@@ -222,6 +244,15 @@ export default function Upload() {
             className="absolute top-4 left-4 glass text-white hover:bg-white/20"
           >
             <X className="h-6 w-6" />
+          </Button>
+
+          <Button
+            onClick={flipCamera}
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 glass text-white hover:bg-white/20"
+          >
+            <Camera className="h-6 w-6" />
           </Button>
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4">
