@@ -234,6 +234,9 @@ export default function Upload() {
             autoPlay
             playsInline
             className="w-full h-full object-cover"
+            style={{
+              transform: facingMode === 'user' ? 'scaleX(-1)' : 'none'
+            }}
           />
           <canvas ref={canvasRef} className="hidden" />
           
