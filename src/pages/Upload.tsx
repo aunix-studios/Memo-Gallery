@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Upload as UploadIcon, Plus, Loader2, X, Camera, RefreshCw } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ArrowLeft, Upload as UploadIcon, Plus, Loader2, X, Camera, RefreshCw, Globe } from 'lucide-react';
 import { saveImage, saveCategory, getAllCategories, updateCategoryCounts } from '@/lib/indexedDB';
 import { toast } from 'sonner';
 
@@ -25,6 +32,7 @@ interface PreviewImage {
 
 export default function Upload() {
   const navigate = useNavigate();
+  const { t, language, setLanguage, availableLanguages } = useLanguage();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -277,11 +285,32 @@ export default function Upload() {
     <div className="min-h-screen pb-20">
       <header className="glass border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/gallery')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-2xl font-bold">Upload Photos</h1>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/gallery')}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-2xl font-bold">{t('uploadPhotos')}</h1>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Globe className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="glass max-h-[400px] overflow-y-auto">
+                {availableLanguages.map((lang) => (
+                  <DropdownMenuItem
+                    key={lang.code}
+                    onClick={() => setLanguage(lang.code)}
+                    className={language === lang.code ? 'bg-primary/20' : ''}
+                  >
+                    <span className="mr-2">{lang.flag}</span>
+                    {lang.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -289,12 +318,12 @@ export default function Upload() {
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         <Card className="glass border-primary/20">
           <CardHeader>
-            <CardTitle>Add to Gallery</CardTitle>
+            <CardTitle>{t('addToGallery')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Category Selection */}
             <div className="space-y-3">
-              <Label>Category</Label>
+              <Label>{t('category')}</Label>
               {categories.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {categories.map((cat) => (
@@ -319,7 +348,7 @@ export default function Upload() {
                     className="transition-smooth hover:scale-105"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    New
+                    {t('newCategory')}
                   </Button>
                 </div>
               ) : (
@@ -328,33 +357,33 @@ export default function Upload() {
                   onClick={() => setShowNewCategory(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Create First Category
+                  {t('createFirstCategory')}
                 </Button>
               )}
 
               {showNewCategory && (
                 <div className="flex gap-2 animate-fade-in">
                   <Input
-                    placeholder="Category name"
+                    placeholder={t('categoryName')}
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     className="bg-secondary/50"
                   />
-                  <Button onClick={handleCreateCategory}>Create</Button>
+                  <Button onClick={handleCreateCategory}>{t('create')}</Button>
                 </div>
               )}
             </div>
 
             {/* Upload Options */}
             <div className="space-y-3">
-              <Label>Add Photos</Label>
+              <Label>{t('addPhotos')}</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* File Upload */}
                 <div className="border-2 border-dashed border-primary/50 rounded-lg p-6 text-center hover:border-primary hover:scale-105 transition-smooth cursor-pointer bg-card/50">
                   <label className="cursor-pointer">
                     <UploadIcon className="h-10 w-10 text-primary mx-auto mb-3" />
-                    <p className="font-medium mb-1">Upload Files</p>
-                    <p className="text-xs text-muted-foreground">From device</p>
+                    <p className="font-medium mb-1">{t('uploadFiles')}</p>
+                    <p className="text-xs text-muted-foreground">{t('fromDevice')}</p>
                     <input
                       type="file"
                       accept="image/*"
@@ -371,8 +400,8 @@ export default function Upload() {
                   onClick={startCamera}
                 >
                   <Camera className="h-10 w-10 text-primary mx-auto mb-3" />
-                  <p className="font-medium mb-1">Take Photo</p>
-                  <p className="text-xs text-muted-foreground">Use camera</p>
+                  <p className="font-medium mb-1">{t('takePhoto')}</p>
+                  <p className="text-xs text-muted-foreground">{t('useCamera')}</p>
                 </div>
               </div>
             </div>
@@ -380,7 +409,7 @@ export default function Upload() {
             {/* Previews */}
             {previews.length > 0 && (
               <div className="animate-fade-in">
-                <Label className="mb-3 block">Selected Photos ({previews.length})</Label>
+                <Label className="mb-3 block">{t('selectedPhotos')} ({previews.length})</Label>
                 <div className="grid grid-cols-3 gap-3">
                   {previews.map((preview) => (
                     <div key={preview.id} className="relative aspect-square rounded-lg overflow-hidden group">
@@ -411,12 +440,12 @@ export default function Upload() {
               {uploading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Uploading...
+                  {t('uploading')}
                 </>
               ) : (
                 <>
                   <UploadIcon className="mr-2 h-5 w-5" />
-                  Upload {previews.length > 0 && `${previews.length} Photo${previews.length > 1 ? 's' : ''}`}
+                  {t('upload')} {previews.length > 0 && `${previews.length} ${previews.length > 1 ? t('selectedPhotos') : t('takePhoto')}`}
                 </>
               )}
             </Button>
