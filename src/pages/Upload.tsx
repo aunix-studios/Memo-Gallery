@@ -384,10 +384,12 @@ export default function Upload() {
                     <UploadIcon className="h-10 w-10 text-primary mx-auto mb-3" />
                     <p className="font-medium mb-1">{t('uploadFiles')}</p>
                     <p className="text-xs text-muted-foreground">{t('fromDevice')}</p>
-                    <p className="text-xs text-muted-foreground mt-2">JPG, PNG, WEBP, HEIC, GIF, BMP, SVG</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {t('supportedFormats')}: JPG, PNG, WEBP, HEIC, HEIF, GIF, BMP, SVG, TIFF, AVIF, ICO
+                    </p>
                     <input
                       type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif,image/gif,image/bmp,image/svg+xml"
+                      accept="image/*,.heic,.heif"
                       multiple
                       className="hidden"
                       onChange={handleFileSelect}
