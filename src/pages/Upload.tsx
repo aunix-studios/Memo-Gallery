@@ -42,6 +42,7 @@ export default function Upload() {
   const [cameraMode, setCameraMode] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [requestingCamera, setRequestingCamera] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -97,17 +98,47 @@ export default function Upload() {
   };
 
   const startCamera = async () => {
+    setRequestingCamera(true);
     try {
+      // Check if mediaDevices is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast.error('Camera not supported on this device');
+        setRequestingCamera(false);
+        return;
+      }
+
+      // Request camera permission with toast feedback
+      toast.loading('Requesting camera access...');
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode },
+        video: { 
+          facingMode,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
         audio: false,
       });
+      
+      toast.dismiss();
       setStream(mediaStream);
       setCameraMode(true);
       toast.success('Camera ready!');
-    } catch (error) {
-      toast.error('Camera access denied. Please allow camera permissions.');
+    } catch (error: any) {
+      toast.dismiss();
       console.error('Camera error:', error);
+      
+      // Provide specific error messages
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        toast.error('Camera permission denied. Please allow camera access in your browser settings.');
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        toast.error('No camera found on this device.');
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        toast.error('Camera is already in use by another application.');
+      } else {
+        toast.error('Failed to access camera. Please check your browser permissions.');
+      }
+    } finally {
+      setRequestingCamera(false);
     }
   };
 
@@ -402,9 +433,15 @@ export default function Upload() {
                   className="border-2 border-dashed border-primary/50 rounded-lg p-6 text-center hover:border-primary hover:scale-105 transition-smooth cursor-pointer bg-card/50"
                   onClick={startCamera}
                 >
-                  <Camera className="h-10 w-10 text-primary mx-auto mb-3" />
+                  {requestingCamera ? (
+                    <Loader2 className="h-10 w-10 text-primary mx-auto mb-3 animate-spin" />
+                  ) : (
+                    <Camera className="h-10 w-10 text-primary mx-auto mb-3" />
+                  )}
                   <p className="font-medium mb-1">{t('takePhoto')}</p>
-                  <p className="text-xs text-muted-foreground">{t('useCamera')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {requestingCamera ? 'Requesting access...' : t('useCamera')}
+                  </p>
                 </div>
               </div>
             </div>
