@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ImageViewerProps {
   images: Array<{ id: string; blob: Blob; category: string }>;
@@ -10,11 +12,14 @@ interface ImageViewerProps {
 }
 
 export default function ImageViewer({ images, initialIndex, onClose }: ImageViewerProps) {
+  const { t } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [remainingEnhancements, setRemainingEnhancements] = useState<number | null>(null);
 
   const currentImage = images[currentIndex];
   const imageUrl = currentImage ? URL.createObjectURL(currentImage.blob) : '';
@@ -99,6 +104,76 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
     a.click();
   };
 
+  const getDeviceId = () => {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  };
+
+  const handleEnhance = async () => {
+    if (isEnhancing) return;
+
+    setIsEnhancing(true);
+    const enhanceToast = toast.loading(t('enhancing'));
+
+    try {
+      // Convert current image blob to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(currentImage.blob);
+      });
+
+      const imageData = await base64Promise;
+      const deviceId = getDeviceId();
+
+      const { data, error } = await supabase.functions.invoke('enhance-image', {
+        body: { imageData, deviceId }
+      });
+
+      toast.dismiss(enhanceToast);
+
+      if (error) {
+        console.error('Enhancement error:', error);
+        if (error.message?.includes('Daily limit reached') || error.message?.includes('429')) {
+          toast.error(t('dailyLimitReached'));
+        } else {
+          toast.error(t('enhancementFailed'));
+        }
+        return;
+      }
+
+      if (data?.enhancedImage) {
+        // Convert base64 to blob
+        const response = await fetch(data.enhancedImage);
+        const blob = await response.blob();
+        
+        // Replace current image with enhanced version
+        images[currentIndex] = {
+          ...currentImage,
+          blob
+        };
+
+        // Force re-render
+        setCurrentIndex(currentIndex);
+        setRemainingEnhancements(data.remainingEnhancements);
+        toast.success(data.message || t('enhancementSuccess'));
+      } else {
+        toast.error(t('enhancementFailed'));
+      }
+    } catch (error) {
+      toast.dismiss(enhanceToast);
+      console.error('Enhancement error:', error);
+      toast.error(t('enhancementFailed'));
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm animate-fade-in">
       {/* Header */}
@@ -110,6 +185,19 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
           <span className="text-sm text-primary">• {currentImage.category}</span>
         </div>
         <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleEnhance}
+            disabled={isEnhancing}
+            className="hover:text-primary transition-smooth gap-2"
+          >
+            <Sparkles className={`h-4 w-4 ${isEnhancing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{t('enhance')}</span>
+            {remainingEnhancements !== null && (
+              <span className="text-xs opacity-70">({remainingEnhancements}/20)</span>
+            )}
+          </Button>
           <Button variant="ghost" size="icon" onClick={handleShare} className="hover:text-primary transition-smooth">
             <Share2 className="h-5 w-5" />
           </Button>

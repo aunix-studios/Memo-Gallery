@@ -54,6 +54,11 @@ const translations: Translations = {
     
     // Image Viewer
     sharePhoto: 'Share Photo',
+    enhance: 'Enhance',
+    enhancing: 'Enhancing photo...',
+    enhancementSuccess: 'Photo enhanced successfully!',
+    enhancementFailed: 'Failed to enhance photo',
+    dailyLimitReached: 'Daily enhancement limit reached. Try again tomorrow!',
     
     // How to Use
     howToUse: 'How to Use',
@@ -147,6 +152,11 @@ const translations: Translations = {
     
     // Image Viewer
     sharePhoto: 'Compartir foto',
+    enhance: 'Mejorar',
+    enhancing: 'Mejorando foto...',
+    enhancementSuccess: '¡Foto mejorada con éxito!',
+    enhancementFailed: 'Error al mejorar la foto',
+    dailyLimitReached: 'Límite diario alcanzado. ¡Inténtalo mañana!',
     
     // How to Use
     howToUse: 'Cómo usar',
@@ -240,6 +250,11 @@ const translations: Translations = {
     
     // Image Viewer
     sharePhoto: 'ফটো শেয়ার করুন',
+    enhance: 'উন্নত করুন',
+    enhancing: 'ফটো উন্নত করা হচ্ছে...',
+    enhancementSuccess: 'ফটো সফলভাবে উন্নত হয়েছে!',
+    enhancementFailed: 'ফটো উন্নত করতে ব্যর্থ',
+    dailyLimitReached: 'দৈনিক সীমা পৌঁছেছে। আগামীকাল আবার চেষ্টা করুন!',
     
     // How to Use
     howToUse: 'কীভাবে ব্যবহার করবেন',
@@ -333,6 +348,11 @@ const translations: Translations = {
     
     // Image Viewer
     sharePhoto: 'مشاركة الصورة',
+    enhance: 'تحسين',
+    enhancing: 'جارٍ تحسين الصورة...',
+    enhancementSuccess: 'تم تحسين الصورة بنجاح!',
+    enhancementFailed: 'فشل تحسين الصورة',
+    dailyLimitReached: 'تم الوصول إلى الحد اليومي. حاول مرة أخرى غدًا!',
     
     // How to Use
     howToUse: 'كيفية الاستخدام',
@@ -426,6 +446,11 @@ const translations: Translations = {
     
     // Image Viewer
     sharePhoto: 'Partager la photo',
+    enhance: 'Améliorer',
+    enhancing: 'Amélioration de la photo...',
+    enhancementSuccess: 'Photo améliorée avec succès!',
+    enhancementFailed: 'Échec de l\'amélioration de la photo',
+    dailyLimitReached: 'Limite quotidienne atteinte. Réessayez demain!',
     
     // How to Use
     howToUse: 'Comment utiliser',
@@ -519,6 +544,11 @@ const translations: Translations = {
     
     // Image Viewer
     sharePhoto: 'Foto teilen',
+    enhance: 'Verbessern',
+    enhancing: 'Foto wird verbessert...',
+    enhancementSuccess: 'Foto erfolgreich verbessert!',
+    enhancementFailed: 'Foto-Verbesserung fehlgeschlagen',
+    dailyLimitReached: 'Tageslimit erreicht. Versuchen Sie es morgen erneut!',
     
     // How to Use
     howToUse: 'Anleitung',
