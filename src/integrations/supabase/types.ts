@@ -14,7 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      enhancement_usage: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          id: string
+          updated_at: string | null
+          usage_count: number
+          usage_date: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          id?: string
+          updated_at?: string | null
+          usage_count?: number
+          usage_date?: string
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          id?: string
+          updated_at?: string | null
+          usage_count?: number
+          usage_date?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
