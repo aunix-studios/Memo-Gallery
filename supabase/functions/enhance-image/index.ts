@@ -7,6 +7,38 @@ const corsHeaders = {
 };
 
 const DAILY_LIMIT = 20;
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const VALID_IMAGE_FORMATS = ['image/jpeg', 'image/png', 'image/webp'];
+
+function validateBase64Image(base64String: string): { valid: boolean; error?: string; size?: number } {
+  if (!base64String.startsWith('data:image/')) {
+    return { valid: false, error: 'Invalid image format' };
+  }
+
+  const matches = base64String.match(/^data:([^;]+);base64,(.+)$/);
+  if (!matches) {
+    return { valid: false, error: 'Invalid base64 format' };
+  }
+
+  const mimeType = matches[1];
+  if (!VALID_IMAGE_FORMATS.includes(mimeType)) {
+    return { valid: false, error: `Unsupported image type: ${mimeType}` };
+  }
+
+  const base64Data = matches[2];
+  const sizeInBytes = (base64Data.length * 3) / 4;
+  
+  if (sizeInBytes > MAX_IMAGE_SIZE) {
+    return { valid: false, error: `Image too large: ${(sizeInBytes / 1024 / 1024).toFixed(2)}MB (max 10MB)` };
+  }
+
+  return { valid: true, size: sizeInBytes };
+}
+
+function validateDeviceId(deviceId: string): boolean {
+  // Enforce expected format: device_<timestamp>_<random>
+  return /^device_\d+_[a-z0-9]{9}$/.test(deviceId);
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -16,6 +48,7 @@ serve(async (req) => {
   try {
     const { imageData, deviceId } = await req.json();
 
+    // Validate required fields
     if (!imageData || !deviceId) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
@@ -23,10 +56,34 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
+    // Validate deviceId format
+    if (!validateDeviceId(deviceId)) {
+      console.error('Invalid deviceId format:', deviceId);
+      return new Response(
+        JSON.stringify({ error: 'Invalid device identifier' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate image data
+    const imageValidation = validateBase64Image(imageData);
+    if (!imageValidation.valid) {
+      console.error('Image validation failed:', imageValidation.error);
+      return new Response(
+        JSON.stringify({ error: imageValidation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Image validated successfully:', {
+      size: `${(imageValidation.size! / 1024 / 1024).toFixed(2)}MB`,
+      deviceId
+    });
+
+    // Initialize Supabase client with service role key to bypass RLS
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     // Check daily usage limit
@@ -148,8 +205,10 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Enhancement error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Don't expose internal error details to client
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: 'Failed to process enhancement request' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
