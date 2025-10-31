@@ -22,11 +22,15 @@ import {
   Eye,
   Book,
   Globe,
+  Upload as UploadIcon,
+  Sparkles,
+  Play,
 } from 'lucide-react';
 import { getAllImages, getAllCategories, deleteImages } from '@/lib/indexedDB';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
 import ImageViewer from '@/components/ImageViewer';
+import VideoPlayer from '@/components/VideoPlayer';
 
 interface ImageData {
   id: string;
@@ -36,6 +40,8 @@ interface ImageData {
   width: number;
   height: number;
   sizeBytes: number;
+  type?: 'image' | 'video';
+  duration?: number;
 }
 
 interface Category {
@@ -307,10 +313,20 @@ export default function Gallery() {
             )}
           </div>
 
-          <Button onClick={() => navigate('/upload')} className="animated-gradient">
-            <Camera className="h-4 w-4 mr-2" />
-            {t('upload')}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => navigate('/memo-ai')}
+              variant="outline"
+              className="border-primary/50 hover:border-primary"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Memo AI
+            </Button>
+            <Button onClick={() => navigate('/upload')} className="animated-gradient">
+              <Camera className="h-4 w-4 mr-2" />
+              {t('upload')}
+            </Button>
+          </div>
         </div>
 
         {/* Gallery Grid */}
@@ -321,10 +337,20 @@ export default function Gallery() {
             <p className="text-muted-foreground mb-6">
               {t('startUploading')}
             </p>
-            <Button onClick={() => navigate('/upload')} className="animated-gradient">
-              <Camera className="h-4 w-4 mr-2" />
-              {t('uploadPhotos')}
-            </Button>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                onClick={() => navigate('/memo-ai')}
+                variant="outline"
+                className="border-primary/50 hover:border-primary"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate with AI
+              </Button>
+              <Button onClick={() => navigate('/upload')} className="animated-gradient">
+                <Camera className="h-4 w-4 mr-2" />
+                {t('uploadPhotos')}
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -340,11 +366,21 @@ export default function Gallery() {
                   }`}
                   onClick={() => selectionMode ? toggleImageSelection(img.id) : handleImageClick(index)}
                 >
-                  <img
-                    src={url}
-                    alt=""
-                    className="w-full h-full object-cover transition-smooth"
-                  />
+                  {img.type === 'video' ? (
+                    <>
+                      <video src={url} className="w-full h-full object-cover" muted />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                        <Play className="h-12 w-12 text-white drop-shadow-lg" />
+                      </div>
+                      {img.duration && (
+                        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                          {Math.floor(img.duration / 60)}:{String(Math.floor(img.duration % 60)).padStart(2, '0')}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <img src={url} alt="" className="w-full h-full object-cover transition-smooth" />
+                  )}
                   {!selectionMode && (
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-smooth flex items-center justify-center">
                       <Eye className="h-8 w-8 text-white" />

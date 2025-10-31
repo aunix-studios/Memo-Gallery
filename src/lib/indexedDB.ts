@@ -11,6 +11,8 @@ interface GalleryDB extends DBSchema {
       width: number;
       height: number;
       sizeBytes: number;
+      type: 'image' | 'video';
+      duration?: number;
     };
     indexes: { 'by-category': string; 'by-timestamp': number };
   };
@@ -30,8 +32,8 @@ let dbInstance: IDBPDatabase<GalleryDB> | null = null;
 export async function getDB() {
   if (dbInstance) return dbInstance;
 
-  dbInstance = await openDB<GalleryDB>('memo-gallery', 1, {
-    upgrade(db) {
+  dbInstance = await openDB<GalleryDB>('memo-gallery', 2, {
+    upgrade(db, oldVersion) {
       // Images store
       if (!db.objectStoreNames.contains('images')) {
         const imageStore = db.createObjectStore('images', { keyPath: 'id' });
@@ -43,19 +45,26 @@ export async function getDB() {
       if (!db.objectStoreNames.contains('categories')) {
         db.createObjectStore('categories', { keyPath: 'id' });
       }
+
+      // Upgrade from v1 to v2: add type and duration fields
+      if (oldVersion < 2) {
+        // Fields will be added when saving new items
+      }
     },
   });
 
   return dbInstance;
 }
 
-// Image operations
+// Image/Video operations
 export async function saveImage(
   id: string,
   blob: Blob,
   category: string,
   width: number,
-  height: number
+  height: number,
+  type: 'image' | 'video' = 'image',
+  duration?: number
 ) {
   const db = await getDB();
   await db.put('images', {
@@ -66,6 +75,8 @@ export async function saveImage(
     width,
     height,
     sizeBytes: blob.size,
+    type,
+    duration,
   });
 }
 

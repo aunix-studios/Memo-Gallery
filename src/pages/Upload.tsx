@@ -28,6 +28,8 @@ interface PreviewImage {
   preview: string;
   width: number;
   height: number;
+  type: 'image' | 'video';
+  duration?: number;
 }
 
 export default function Upload() {
@@ -74,27 +76,62 @@ export default function Upload() {
     
     const newPreviews = await Promise.all(
       files.map(async (file) => {
-        return new Promise<PreviewImage>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
+        const isVideo = file.type.startsWith('video/');
+        
+        if (isVideo) {
+          // Check video duration (max 5 hours = 18000 seconds)
+          return new Promise<PreviewImage>((resolve, reject) => {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            
+            video.onloadedmetadata = () => {
+              window.URL.revokeObjectURL(video.src);
+              
+              if (video.duration > 18000) {
+                toast.error(`${file.name} exceeds 5 hour limit`);
+                reject(new Error('Video too long'));
+                return;
+              }
+              
               resolve({
                 id: Math.random().toString(36).substr(2, 9),
                 file,
-                preview: e.target?.result as string,
-                width: img.width,
-                height: img.height,
+                preview: URL.createObjectURL(file),
+                width: video.videoWidth,
+                height: video.videoHeight,
+                type: 'video',
+                duration: video.duration,
               });
             };
-            img.src = e.target?.result as string;
-          };
-          reader.readAsDataURL(file);
-        });
+            
+            video.onerror = () => reject(new Error('Invalid video'));
+            video.src = URL.createObjectURL(file);
+          });
+        } else {
+          // Handle image
+          return new Promise<PreviewImage>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = new Image();
+              img.onload = () => {
+                resolve({
+                  id: Math.random().toString(36).substr(2, 9),
+                  file,
+                  preview: e.target?.result as string,
+                  width: img.width,
+                  height: img.height,
+                  type: 'image',
+                });
+              };
+              img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+          });
+        }
       })
     );
 
-    setPreviews((prev) => [...prev, ...newPreviews]);
+    setPreviews((prev) => [...prev, ...newPreviews.filter(Boolean)]);
   };
 
   const startCamera = async () => {
@@ -199,6 +236,7 @@ export default function Upload() {
               preview: url,
               width: img.width,
               height: img.height,
+              type: 'image' as const,
             },
           ]);
           stopCamera();
@@ -249,16 +287,19 @@ export default function Upload() {
           blob,
           selectedCategory,
           preview.width,
-          preview.height
+          preview.height,
+          preview.type,
+          preview.duration
         );
       }
 
       await updateCategoryCounts();
-      toast.success(`Uploaded ${previews.length} image(s)!`);
+      const mediaTypes = previews.some(p => p.type === 'video') ? 'media file(s)' : 'image(s)';
+      toast.success(`Uploaded ${previews.length} ${mediaTypes}!`);
       navigate('/gallery');
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload images');
+      toast.error('Failed to upload media');
     } finally {
       setUploading(false);
     }
@@ -416,11 +457,11 @@ export default function Upload() {
                     <p className="font-medium mb-1">{t('uploadFiles')}</p>
                     <p className="text-xs text-muted-foreground">{t('fromDevice')}</p>
                     <p className="text-xs text-muted-foreground mt-2">
-                      {t('supportedFormats')}: JPG, PNG, WEBP, HEIC, HEIF, GIF, BMP, SVG, TIFF, AVIF, ICO
+                      {t('supportedFormats')}: Images (JPG, PNG, WEBP, HEIC) & Videos (MP4, MOV, WEBM) - Max 5 hours per video
                     </p>
                     <input
                       type="file"
-                      accept="image/*,.heic,.heif"
+                      accept="image/*,video/*,.heic,.heif"
                       multiple
                       className="hidden"
                       onChange={handleFileSelect}
@@ -453,17 +494,30 @@ export default function Upload() {
                 <div className="grid grid-cols-3 gap-3">
                   {previews.map((preview) => (
                     <div key={preview.id} className="relative aspect-square rounded-lg overflow-hidden group">
-                      <img
-                        src={preview.preview}
-                        alt=""
-                        className="w-full h-full object-cover transition-smooth group-hover:scale-110"
-                      />
+                      {preview.type === 'video' ? (
+                        <video
+                          src={preview.preview}
+                          className="w-full h-full object-cover transition-smooth group-hover:scale-110"
+                          muted
+                        />
+                      ) : (
+                        <img
+                          src={preview.preview}
+                          alt=""
+                          className="w-full h-full object-cover transition-smooth group-hover:scale-110"
+                        />
+                      )}
                       <button
                         onClick={() => removePreview(preview.id)}
                         className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-smooth hover:scale-110"
                       >
                         <X className="h-4 w-4" />
                       </button>
+                      {preview.type === 'video' && preview.duration && (
+                        <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                          {Math.floor(preview.duration / 60)}:{String(Math.floor(preview.duration % 60)).padStart(2, '0')}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

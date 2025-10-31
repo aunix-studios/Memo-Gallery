@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ImageViewerProps {
-  images: Array<{ id: string; blob: Blob; category: string }>;
+  images: Array<{ id: string; blob: Blob; category: string; type?: 'image' | 'video'; duration?: number }>;
   initialIndex: number;
   onClose: () => void;
 }
@@ -216,7 +216,7 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
         </div>
       </div>
 
-      {/* Image Container */}
+      {/* Media Container */}
       <div
         className="absolute inset-0 flex items-center justify-center cursor-move"
         onMouseDown={handleMouseDown}
@@ -224,16 +224,24 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        <img
-          src={imageUrl}
-          alt=""
-          className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
-          style={{
-            transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-            cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-          }}
-          draggable={false}
-        />
+        {currentImage.type === 'video' ? (
+          <video
+            src={imageUrl}
+            controls
+            className="max-w-full max-h-full object-contain"
+          />
+        ) : (
+          <img
+            src={imageUrl}
+            alt=""
+            className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
+            style={{
+              transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+              cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+            }}
+            draggable={false}
+          />
+        )}
       </div>
 
       {/* Navigation */}

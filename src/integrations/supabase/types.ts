@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_generations: {
+        Row: {
+          created_at: string
+          credits_used: number
+          id: string
+          image_url: string | null
+          prompt: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_used?: number
+          id?: string
+          image_url?: string | null
+          prompt: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_used?: number
+          id?: string
+          image_url?: string | null
+          prompt?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       enhancement_usage: {
         Row: {
           created_at: string | null
@@ -41,12 +68,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_credits: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          last_reset_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          id?: string
+          last_reset_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          last_reset_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      reset_daily_credits: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
