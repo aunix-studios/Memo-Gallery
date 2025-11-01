@@ -42,7 +42,7 @@ export default function MemoAI() {
     const { data, error } = await supabase
       .from('user_credits')
       .select('credits, last_reset_date')
-      .eq('user_id', user.uid)
+      .eq('user_id', user.id)
       .maybeSingle();
 
     if (error) {
