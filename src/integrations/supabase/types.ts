@@ -100,6 +100,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      deduct_credits: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: {
+          message: string
+          new_credits: number
+          success: boolean
+        }[]
+      }
       reset_daily_credits: { Args: never; Returns: undefined }
     }
     Enums: {
