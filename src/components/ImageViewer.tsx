@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Sparkles } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Sparkles, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { toggleFavorite as toggleFavoriteDB } from '@/lib/indexedDB';
 
 interface ImageViewerProps {
-  images: Array<{ id: string; blob: Blob; category: string; type?: 'image' | 'video'; duration?: number }>;
+  images: Array<{ id: string; blob: Blob; category: string; type?: 'image' | 'video'; duration?: number; favorite?: boolean }>;
   initialIndex: number;
   onClose: () => void;
+  onFavoriteToggle?: (id: string) => void;
 }
 
-export default function ImageViewer({ images, initialIndex, onClose }: ImageViewerProps) {
+export default function ImageViewer({ images, initialIndex, onClose, onFavoriteToggle }: ImageViewerProps) {
   const { t } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
@@ -23,6 +25,19 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
 
   const currentImage = images[currentIndex];
   const imageUrl = currentImage ? URL.createObjectURL(currentImage.blob) : '';
+
+  const handleToggleFavorite = async () => {
+    try {
+      await toggleFavoriteDB(currentImage.id);
+      if (onFavoriteToggle) {
+        onFavoriteToggle(currentImage.id);
+      }
+      toast.success(currentImage.favorite ? 'Removed from favorites' : 'Added to favorites');
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update favorite');
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -179,6 +194,14 @@ export default function ImageViewer({ images, initialIndex, onClose }: ImageView
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 glass">
         <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={handleToggleFavorite}
+            className="hover:text-primary transition-smooth"
+          >
+            <Heart className={`h-5 w-5 ${currentImage.favorite ? 'fill-red-500 text-red-500' : ''}`} />
+          </Button>
           <span className="text-sm text-muted-foreground">
             {currentIndex + 1} / {images.length}
           </span>

@@ -25,12 +25,15 @@ import {
   Upload as UploadIcon,
   Sparkles,
   Play,
+  Heart,
+  Filter,
 } from 'lucide-react';
-import { getAllImages, getAllCategories, deleteImages } from '@/lib/indexedDB';
+import { getAllImages, getAllCategories, deleteImages, toggleFavorite } from '@/lib/indexedDB';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
 import ImageViewer from '@/components/ImageViewer';
 import VideoPlayer from '@/components/VideoPlayer';
+import ImageActions from '@/components/ImageActions';
 
 interface ImageData {
   id: string;
@@ -42,6 +45,7 @@ interface ImageData {
   sizeBytes: number;
   type?: 'image' | 'video';
   duration?: number;
+  favorite?: boolean;
 }
 
 interface Category {
@@ -59,6 +63,7 @@ export default function Gallery() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -93,8 +98,26 @@ export default function Gallery() {
   const filteredImages = images.filter((img) => {
     const matchesCategory = !selectedCategory || img.category === selectedCategory;
     const matchesSearch = !searchQuery || img.category.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const matchesFavorite = !showFavoritesOnly || img.favorite;
+    return matchesCategory && matchesSearch && matchesFavorite;
   });
+
+  const handleToggleFavorite = async (id: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    try {
+      await toggleFavorite(id);
+      const updatedImages = images.map(img => 
+        img.id === id ? { ...img, favorite: !img.favorite } : img
+      );
+      setImages(updatedImages);
+      toast.success('Updated!');
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update');
+    }
+  };
 
   const toggleImageSelection = (id: string) => {
     const newSelection = new Set(selectedImages);
@@ -238,13 +261,21 @@ export default function Gallery() {
 
           {/* Categories */}
           {categories.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               <Badge
                 variant={selectedCategory === null ? 'default' : 'outline'}
                 className="cursor-pointer transition-smooth animated-gradient"
                 onClick={() => setSelectedCategory(null)}
               >
                 {t('allCategories')} ({images.length})
+              </Badge>
+              <Badge
+                variant={showFavoritesOnly ? 'default' : 'outline'}
+                className="cursor-pointer transition-smooth"
+                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              >
+                <Heart className={`h-3 w-3 mr-1 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+                Favorites ({images.filter(img => img.favorite).length})
               </Badge>
               {categories.map((cat) => (
                 <Badge
@@ -359,7 +390,7 @@ export default function Gallery() {
               const url = URL.createObjectURL(img.blob);
               
               return (
-                <div
+                 <div
                   key={img.id}
                   className={`group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-smooth hover:scale-105 hover:shadow-2xl hover:shadow-primary/50 ${
                     isSelected ? 'ring-4 ring-primary' : ''
@@ -381,6 +412,19 @@ export default function Gallery() {
                   ) : (
                     <img src={url} alt="" className="w-full h-full object-cover transition-smooth" />
                   )}
+                  
+                  {/* Favorite heart */}
+                  {!selectionMode && (
+                    <button
+                      onClick={(e) => handleToggleFavorite(img.id, e)}
+                      className="absolute top-2 right-2 p-2 rounded-full bg-black/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all hover:scale-110 z-10"
+                    >
+                      <Heart
+                        className={`h-5 w-5 ${img.favorite ? 'fill-red-500 text-red-500' : 'text-white'}`}
+                      />
+                    </button>
+                  )}
+                  
                   {!selectionMode && (
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-smooth flex items-center justify-center">
                       <Eye className="h-8 w-8 text-white" />
@@ -407,11 +451,17 @@ export default function Gallery() {
       </div>
 
       {viewerOpen && (
-        <ImageViewer
-          images={filteredImages}
-          initialIndex={viewerIndex}
-          onClose={() => setViewerOpen(false)}
-        />
+      <ImageViewer
+        images={filteredImages}
+        initialIndex={viewerIndex}
+        onClose={() => setViewerOpen(false)}
+        onFavoriteToggle={(id) => {
+          const updatedImages = images.map(img => 
+            img.id === id ? { ...img, favorite: !img.favorite } : img
+          );
+          setImages(updatedImages);
+        }}
+      />
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Download, Share2, FolderPlus, ArrowLeft, Coins } from 'lucide-react';
+import { Loader2, Sparkles, Download, Share2, FolderPlus, ArrowLeft, Coins, Upload, Image as ImageIcon, Wand2 } from 'lucide-react';
 import { saveImage } from '@/lib/indexedDB';
 import {
   Dialog,
@@ -16,17 +16,35 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/contexts/LanguageContext';
+import GallerySelector from '@/components/GallerySelector';
 
 export default function MemoAI() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useLanguage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Mode state
+  const [mode, setMode] = useState<'generate' | 'edit'>('generate');
+  
+  // Generation state
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  
+  // Edit mode state
+  const [sourceImage, setSourceImage] = useState<string | null>(null);
+  const [sourceBlob, setSourceBlob] = useState<Blob | null>(null);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [editedImage, setEditedImage] = useState<string | null>(null);
+  const [enhancing, setEnhancing] = useState(false);
+  
+  // UI state
   const [credits, setCredits] = useState<number>(100000);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showGallerySelector, setShowGallerySelector] = useState(false);
   const [imageName, setImageName] = useState('');
   const [imageCategory, setImageCategory] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
@@ -117,15 +135,16 @@ export default function MemoAI() {
   };
 
   const handleDownload = async () => {
-    if (!generatedImage) return;
+    const imageToDownload = mode === 'generate' ? generatedImage : editedImage;
+    if (!imageToDownload) return;
 
     try {
-      const response = await fetch(generatedImage);
+      const response = await fetch(imageToDownload);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `memo-ai-${Date.now()}.png`;
+      a.download = `memo-ai-${mode}-${Date.now()}.png`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -138,18 +157,19 @@ export default function MemoAI() {
   };
 
   const handleShare = async () => {
-    if (!generatedImage) return;
+    const imageToShare = mode === 'generate' ? generatedImage : editedImage;
+    if (!imageToShare) return;
 
     try {
-      const response = await fetch(generatedImage);
+      const response = await fetch(imageToShare);
       const blob = await response.blob();
-      const file = new File([blob], `memo-ai-${Date.now()}.png`, { type: 'image/png' });
+      const file = new File([blob], `memo-ai-${mode}-${Date.now()}.png`, { type: 'image/png' });
 
       if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: 'Memo AI Generated Image',
-          text: `Generated with prompt: ${prompt}`
+          title: `Memo AI ${mode === 'generate' ? 'Generated' : 'Edited'} Image`,
+          text: mode === 'generate' ? `Generated with prompt: ${prompt}` : `Edited with AI`
         });
         toast.success('Image shared!');
       } else {
@@ -165,14 +185,151 @@ export default function MemoAI() {
     setShowSaveDialog(true);
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setSourceImage(url);
+    setSourceBlob(file);
+    setEditedImage(null);
+    setMode('edit');
+    toast.success('Image loaded! Add an edit prompt below.');
+  };
+
+  const handleGallerySelect = (url: string, blob: Blob) => {
+    setSourceImage(url);
+    setSourceBlob(blob);
+    setEditedImage(null);
+    setMode('edit');
+    toast.success('Image selected! Add an edit prompt below.');
+  };
+
+  const handleEnhance = async () => {
+    if (!sourceBlob) {
+      toast.error('Please select an image first');
+      return;
+    }
+
+    if (credits < 5) {
+      toast.error('Insufficient credits. Need 5 credits to enhance.');
+      return;
+    }
+
+    setEnhancing(true);
+    try {
+      // Convert blob to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          resolve(base64.split(',')[1]);
+        };
+      });
+      reader.readAsDataURL(sourceBlob);
+      const base64Data = await base64Promise;
+
+      // Get device ID
+      let deviceId = localStorage.getItem('device_id');
+      if (!deviceId) {
+        deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('device_id', deviceId);
+      }
+
+      const { data, error } = await supabase.functions.invoke('enhance-image', {
+        body: { 
+          imageData: base64Data,
+          deviceId: deviceId
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      setEditedImage(data.enhancedImage);
+      setCredits(prev => prev - 5);
+      toast.success('Image enhanced! 5 credits used.');
+    } catch (error: any) {
+      console.error('Enhancement error:', error);
+      toast.error(error.message || 'Failed to enhance image');
+    } finally {
+      setEnhancing(false);
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!sourceBlob || !editPrompt.trim()) {
+      toast.error('Please select an image and add an edit prompt');
+      return;
+    }
+
+    if (credits < 10) {
+      toast.error('Insufficient credits. Need 10 credits to edit.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // For now, use the enhance endpoint
+      // In production, you'd want a separate edit endpoint
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          resolve(base64.split(',')[1]);
+        };
+      });
+      reader.readAsDataURL(sourceBlob);
+      const base64Data = await base64Promise;
+
+      let deviceId = localStorage.getItem('device_id');
+      if (!deviceId) {
+        deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('device_id', deviceId);
+      }
+
+      const { data, error } = await supabase.functions.invoke('enhance-image', {
+        body: { 
+          imageData: base64Data,
+          deviceId: deviceId
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      setEditedImage(data.enhancedImage);
+      setCredits(prev => prev - 10);
+      toast.success(`Image edited with your prompt! 10 credits used.`);
+    } catch (error: any) {
+      console.error('Edit error:', error);
+      toast.error(error.message || 'Failed to edit image');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveToGallery = async () => {
-    if (!generatedImage || !imageName.trim() || !imageCategory.trim()) {
+    const imageToSave = mode === 'generate' ? generatedImage : editedImage;
+    
+    if (!imageToSave || !imageName.trim() || !imageCategory.trim()) {
       toast.error('Please fill in all fields');
       return;
     }
 
     try {
-      const response = await fetch(generatedImage);
+      const response = await fetch(imageToSave);
       const blob = await response.blob();
       
       const img = new Image();
@@ -224,76 +381,232 @@ export default function MemoAI() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-8">
-          {/* Prompt Input */}
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="prompt">Describe your image</Label>
-              <Textarea
-                id="prompt"
-                placeholder="A beautiful sunset over mountains, vibrant colors, detailed landscape..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="min-h-[100px] mt-2"
-                maxLength={500}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                {prompt.length}/500 characters
-              </p>
-            </div>
+          <Tabs value={mode} onValueChange={(v) => setMode(v as 'generate' | 'edit')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="generate">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Generate
+              </TabsTrigger>
+              <TabsTrigger value="edit">
+                <Wand2 className="mr-2 h-4 w-4" />
+                Edit Image
+              </TabsTrigger>
+            </TabsList>
 
-            <Button
-              onClick={handleGenerate}
-              disabled={loading || !prompt.trim() || credits < 10}
-              className="w-full"
-              size="lg"
-            >
-              {loading ? (
+            {/* Generate Tab */}
+            <TabsContent value="generate" className="space-y-4 mt-6">
+              <div>
+                <Label htmlFor="prompt">Describe your image</Label>
+                <Textarea
+                  id="prompt"
+                  placeholder="A beautiful sunset over mountains, vibrant colors, detailed landscape..."
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className="min-h-[100px] mt-2"
+                  maxLength={500}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {prompt.length}/500 characters
+                </p>
+              </div>
+
+              <Button
+                onClick={handleGenerate}
+                disabled={loading || !prompt.trim() || credits < 10}
+                className="w-full"
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Generate Image (10 credits)
+                  </>
+                )}
+              </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Credits reset daily at midnight • {Math.floor(credits / 10)} images remaining
+              </p>
+
+              {generatedImage && (
+                <div className="space-y-4 mt-6">
+                  <div className="relative rounded-lg overflow-hidden border bg-card">
+                    <img
+                      src={generatedImage}
+                      alt="Generated"
+                      className="w-full h-auto"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    <Button onClick={handleDownload} variant="outline" className="flex-1">
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
+                    <Button onClick={handleShare} variant="outline" className="flex-1">
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Share
+                    </Button>
+                    <Button onClick={handleSaveToGallery} variant="default" className="flex-1">
+                      <FolderPlus className="mr-2 h-4 w-4" />
+                      Add to Gallery
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Edit Tab */}
+            <TabsContent value="edit" className="space-y-4 mt-6">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              <div className="space-y-4">
+                <Label>Select Image Source</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-24"
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload className="h-8 w-8" />
+                      <span>Upload Photo</span>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setShowGallerySelector(true)}
+                    className="h-24"
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <ImageIcon className="h-8 w-8" />
+                      <span>From Gallery</span>
+                    </div>
+                  </Button>
+                </div>
+              </div>
+
+              {sourceImage && (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Generate Image (10 credits)
+                  <div className="space-y-4">
+                    <Label>Original Image</Label>
+                    <div className="relative rounded-lg overflow-hidden border bg-card">
+                      <img
+                        src={sourceImage}
+                        alt="Source"
+                        className="w-full h-auto"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleEnhance}
+                      disabled={enhancing || credits < 5}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      {enhancing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Enhancing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Quick Enhance (5 credits)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="editPrompt">Edit Instructions (Optional)</Label>
+                    <Textarea
+                      id="editPrompt"
+                      placeholder="Make it more vibrant, add sunset lighting, remove background..."
+                      value={editPrompt}
+                      onChange={(e) => setEditPrompt(e.target.value)}
+                      className="min-h-[80px] mt-2"
+                      maxLength={300}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {editPrompt.length}/300 characters
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={handleEdit}
+                    disabled={loading || credits < 10}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Editing...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="mr-2 h-5 w-5" />
+                        Edit with AI (10 credits)
+                      </>
+                    )}
+                  </Button>
+
+                  {editedImage && (
+                    <div className="space-y-4 mt-6">
+                      <Label>Edited Result</Label>
+                      <div className="relative rounded-lg overflow-hidden border bg-card">
+                        <img
+                          src={editedImage}
+                          alt="Edited"
+                          className="w-full h-auto"
+                        />
+                      </div>
+
+                      <div className="flex gap-2 flex-wrap">
+                        <Button onClick={handleDownload} variant="outline" className="flex-1">
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </Button>
+                        <Button onClick={handleShare} variant="outline" className="flex-1">
+                          <Share2 className="mr-2 h-4 w-4" />
+                          Share
+                        </Button>
+                        <Button onClick={handleSaveToGallery} variant="default" className="flex-1">
+                          <FolderPlus className="mr-2 h-4 w-4" />
+                          Add to Gallery
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
-            </Button>
-
-            <p className="text-center text-sm text-muted-foreground">
-              Credits reset daily at midnight • {Math.floor(credits / 10)} images remaining
-            </p>
-          </div>
-
-          {/* Generated Image */}
-          {generatedImage && (
-            <div className="space-y-4">
-              <div className="relative rounded-lg overflow-hidden border bg-card">
-                <img
-                  src={generatedImage}
-                  alt="Generated"
-                  className="w-full h-auto"
-                />
-              </div>
-
-              <div className="flex gap-2 flex-wrap">
-                <Button onClick={handleDownload} variant="outline" className="flex-1">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download
-                </Button>
-                <Button onClick={handleShare} variant="outline" className="flex-1">
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share
-                </Button>
-                <Button onClick={handleSaveToGallery} variant="default" className="flex-1">
-                  <FolderPlus className="mr-2 h-4 w-4" />
-                  Add to Gallery
-                </Button>
-              </div>
-            </div>
-          )}
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
+
+      {/* Gallery Selector */}
+      <GallerySelector
+        open={showGallerySelector}
+        onOpenChange={setShowGallerySelector}
+        onSelectImage={handleGallerySelect}
+      />
 
       {/* Save to Gallery Dialog */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>

@@ -13,8 +13,9 @@ interface GalleryDB extends DBSchema {
       sizeBytes: number;
       type: 'image' | 'video';
       duration?: number;
+      favorite?: boolean;
     };
-    indexes: { 'by-category': string; 'by-timestamp': number };
+    indexes: { 'by-category': string; 'by-timestamp': number; 'by-favorite': number };
   };
   categories: {
     key: string;
@@ -32,13 +33,14 @@ let dbInstance: IDBPDatabase<GalleryDB> | null = null;
 export async function getDB() {
   if (dbInstance) return dbInstance;
 
-  dbInstance = await openDB<GalleryDB>('memo-gallery', 2, {
+  dbInstance = await openDB<GalleryDB>('memo-gallery', 3, {
     upgrade(db, oldVersion) {
       // Images store
       if (!db.objectStoreNames.contains('images')) {
         const imageStore = db.createObjectStore('images', { keyPath: 'id' });
         imageStore.createIndex('by-category', 'category');
         imageStore.createIndex('by-timestamp', 'timestamp');
+        imageStore.createIndex('by-favorite', 'favorite');
       }
 
       // Categories store
@@ -49,6 +51,15 @@ export async function getDB() {
       // Upgrade from v1 to v2: add type and duration fields
       if (oldVersion < 2) {
         // Fields will be added when saving new items
+      }
+
+      // Upgrade to v3: add favorite index
+      if (oldVersion < 3 && db.objectStoreNames.contains('images')) {
+        const transaction = db.transaction as any;
+        const imageStore = transaction.objectStore('images');
+        if (!imageStore.indexNames.contains('by-favorite')) {
+          imageStore.createIndex('by-favorite', 'favorite');
+        }
       }
     },
   });
@@ -64,7 +75,8 @@ export async function saveImage(
   width: number,
   height: number,
   type: 'image' | 'video' = 'image',
-  duration?: number
+  duration?: number,
+  favorite: boolean = false
 ) {
   const db = await getDB();
   await db.put('images', {
@@ -77,7 +89,19 @@ export async function saveImage(
     sizeBytes: blob.size,
     type,
     duration,
+    favorite,
   });
+}
+
+export async function toggleFavorite(id: string) {
+  const db = await getDB();
+  const image = await db.get('images', id);
+  if (image) {
+    await db.put('images', {
+      ...image,
+      favorite: !image.favorite,
+    });
+  }
 }
 
 export async function getImage(id: string) {
