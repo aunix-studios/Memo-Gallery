@@ -12,7 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Camera, Loader2, Globe } from 'lucide-react';
+import { Camera, Loader2, Globe, CheckCircle2, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -22,6 +23,20 @@ export default function Signup() {
   const { signup, user } = useAuth();
   const { t, language, setLanguage, availableLanguages } = useLanguage();
   const navigate = useNavigate();
+
+  // Password strength validation
+  const validatePassword = (pwd: string) => {
+    const checks = {
+      length: pwd.length >= 8,
+      uppercase: /[A-Z]/.test(pwd),
+      lowercase: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd),
+      special: /[^A-Za-z0-9]/.test(pwd)
+    };
+    return checks;
+  };
+
+  const passwordChecks = validatePassword(password);
 
   // Redirect if already logged in
   if (user) {
@@ -33,12 +48,13 @@ export default function Signup() {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      alert('Passwords do not match!');
+      toast.error('Passwords do not match!');
       return;
     }
 
-    if (password.length < 6) {
-      alert('Password must be at least 6 characters long');
+    const checks = validatePassword(password);
+    if (!checks.length || !checks.uppercase || !checks.lowercase || !checks.number) {
+      toast.error('Password does not meet security requirements');
       return;
     }
 
@@ -46,9 +62,11 @@ export default function Signup() {
 
     try {
       await signup(email, password);
+      toast.success('Account created successfully!');
       navigate('/gallery');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Signup error:', error);
+      toast.error(error.message || 'Failed to create account');
     } finally {
       setLoading(false);
     }
@@ -117,9 +135,33 @@ export default function Signup() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="bg-secondary/50"
               />
+              {password && (
+                <div className="mt-2 space-y-1 text-xs">
+                  <div className={`flex items-center gap-1 ${passwordChecks.length ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    {passwordChecks.length ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                    <span>At least 8 characters</span>
+                  </div>
+                  <div className={`flex items-center gap-1 ${passwordChecks.uppercase ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    {passwordChecks.uppercase ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                    <span>One uppercase letter</span>
+                  </div>
+                  <div className={`flex items-center gap-1 ${passwordChecks.lowercase ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    {passwordChecks.lowercase ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                    <span>One lowercase letter</span>
+                  </div>
+                  <div className={`flex items-center gap-1 ${passwordChecks.number ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    {passwordChecks.number ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                    <span>One number</span>
+                  </div>
+                  <div className={`flex items-center gap-1 ${passwordChecks.special ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    {passwordChecks.special ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                    <span>One special character (optional but recommended)</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -131,7 +173,7 @@ export default function Signup() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="bg-secondary/50"
               />
             </div>

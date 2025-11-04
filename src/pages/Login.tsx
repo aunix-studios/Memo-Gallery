@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Camera, Loader2, Globe } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -34,9 +35,11 @@ export default function Login() {
 
     try {
       await login(email, password);
+      toast.success('Welcome back!');
       navigate('/gallery');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      toast.error(error.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }

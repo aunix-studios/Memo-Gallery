@@ -223,16 +223,15 @@ export default function MemoAI() {
 
     setEnhancing(true);
     try {
-      // Convert blob to base64
+      // Convert blob to base64 with full data URL
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve) => {
         reader.onloadend = () => {
-          const base64 = reader.result as string;
-          resolve(base64.split(',')[1]);
+          resolve(reader.result as string); // Keep full data URL
         };
       });
       reader.readAsDataURL(sourceBlob);
-      const base64Data = await base64Promise;
+      const imageData = await base64Promise;
 
       // Get device ID
       let deviceId = localStorage.getItem('device_id');
@@ -243,7 +242,7 @@ export default function MemoAI() {
 
       const { data, error } = await supabase.functions.invoke('enhance-image', {
         body: { 
-          imageData: base64Data,
+          imageData: imageData,
           deviceId: deviceId
         }
       });
@@ -278,28 +277,20 @@ export default function MemoAI() {
 
     setLoading(true);
     try {
-      // For now, use the enhance endpoint
-      // In production, you'd want a separate edit endpoint
+      // Convert blob to base64 with full data URL
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve) => {
         reader.onloadend = () => {
-          const base64 = reader.result as string;
-          resolve(base64.split(',')[1]);
+          resolve(reader.result as string); // Keep full data URL
         };
       });
       reader.readAsDataURL(sourceBlob);
-      const base64Data = await base64Promise;
+      const imageData = await base64Promise;
 
-      let deviceId = localStorage.getItem('device_id');
-      if (!deviceId) {
-        deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('device_id', deviceId);
-      }
-
-      const { data, error } = await supabase.functions.invoke('enhance-image', {
+      const { data, error } = await supabase.functions.invoke('edit-image', {
         body: { 
-          imageData: base64Data,
-          deviceId: deviceId
+          imageData: imageData,
+          prompt: editPrompt.trim()
         }
       });
 
@@ -309,9 +300,9 @@ export default function MemoAI() {
         return;
       }
 
-      setEditedImage(data.enhancedImage);
-      setCredits(prev => prev - 10);
-      toast.success(`Image edited with your prompt! 10 credits used.`);
+      setEditedImage(data.editedImage);
+      setCredits(data.credits);
+      toast.success(`Image edited! ${data.credits} credits remaining`);
     } catch (error: any) {
       console.error('Edit error:', error);
       toast.error(error.message || 'Failed to edit image');
