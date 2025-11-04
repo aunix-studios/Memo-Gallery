@@ -199,6 +199,27 @@ serve(async (req) => {
 
       const aiData = await aiResponse.json();
       const imageUrl = aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      const aiMessage = aiData.choices?.[0]?.message?.content;
+
+      // Check if AI refused the request
+      if (!imageUrl && aiMessage) {
+        console.error('AI refused generation:', aiMessage);
+        
+        // Refund credits
+        await supabase
+          .from('user_credits')
+          .update({ credits: currentCredits + 10 })
+          .eq('user_id', user.id);
+
+        return new Response(
+          JSON.stringify({ 
+            error: 'Image generation was blocked for safety reasons. Please try a different prompt. Your credits have been refunded.',
+            message: aiMessage,
+            credits: currentCredits + 10
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       if (!imageUrl) {
         console.error('No image URL in response:', JSON.stringify(aiData));

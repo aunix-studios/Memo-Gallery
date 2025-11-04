@@ -343,9 +343,9 @@ export default function MemoAI() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background page-transition">
       {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 animate-slide-down">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
@@ -370,7 +370,7 @@ export default function MemoAI() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 animate-fade-in">
         <div className="max-w-4xl mx-auto space-y-8">
           <Tabs value={mode} onValueChange={(v) => setMode(v as 'generate' | 'edit')}>
             <TabsList className="grid w-full grid-cols-2">
@@ -425,12 +425,12 @@ export default function MemoAI() {
               </p>
 
               {generatedImage && (
-                <div className="space-y-4 mt-6">
-                  <div className="relative rounded-lg overflow-hidden border bg-card">
+                <div className="space-y-4 mt-6 animate-scale-in">
+                  <div className="relative rounded-lg overflow-hidden border bg-card card-hover">
                     <img
                       src={generatedImage}
                       alt="Generated"
-                      className="w-full h-auto"
+                      className="w-full h-auto transition-transform hover:scale-105"
                     />
                   </div>
 
@@ -492,13 +492,13 @@ export default function MemoAI() {
 
               {sourceImage && (
                 <>
-                  <div className="space-y-4">
+                  <div className="space-y-4 animate-fade-in">
                     <Label>Original Image</Label>
-                    <div className="relative rounded-lg overflow-hidden border bg-card">
+                    <div className="relative rounded-lg overflow-hidden border bg-card card-hover">
                       <img
                         src={sourceImage}
                         alt="Source"
-                        className="w-full h-auto"
+                        className="w-full h-auto transition-transform hover:scale-105"
                       />
                     </div>
                   </div>
@@ -559,13 +559,13 @@ export default function MemoAI() {
                   </Button>
 
                   {editedImage && (
-                    <div className="space-y-4 mt-6">
+                    <div className="space-y-4 mt-6 animate-scale-in">
                       <Label>Edited Result</Label>
-                      <div className="relative rounded-lg overflow-hidden border bg-card">
+                      <div className="relative rounded-lg overflow-hidden border bg-card card-hover">
                         <img
                           src={editedImage}
                           alt="Edited"
-                          className="w-full h-auto"
+                          className="w-full h-auto transition-transform hover:scale-105"
                         />
                       </div>
 

@@ -46,12 +46,12 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden page-transition">
       {/* Animated background */}
       <div className="absolute inset-0 animated-gradient opacity-20" />
       
       {/* Language Selector - Top Right */}
-      <div className="absolute top-4 right-4 z-20">
+      <div className="absolute top-4 right-4 z-20 animate-slide-down">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" className="glass">
@@ -73,9 +73,9 @@ export default function Login() {
         </DropdownMenu>
       </div>
       
-      <Card className="w-full max-w-md relative z-10 glass border-primary/20">
+      <Card className="w-full max-w-md relative z-10 glass border-primary/20 animate-scale-in">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto w-16 h-16 rounded-full animated-gradient flex items-center justify-center">
+          <div className="mx-auto w-16 h-16 rounded-full animated-gradient flex items-center justify-center animate-pulse-glow">
             <Camera className="h-8 w-8 text-white" />
           </div>
           <CardTitle className="text-3xl font-bold">Memo Gallery</CardTitle>
@@ -116,7 +116,7 @@ export default function Login() {
           <CardFooter className="flex flex-col space-y-4">
             <Button
               type="submit"
-              className="w-full animated-gradient"
+              className="w-full animated-gradient transition-smooth"
               disabled={loading}
             >
               {loading ? (
