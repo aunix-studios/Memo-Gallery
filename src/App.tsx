@@ -13,6 +13,7 @@ import Upload from "./pages/Upload";
 import HowToUse from "./pages/HowToUse";
 import MemoAI from "./pages/MemoAI";
 import NotFound from "./pages/NotFound";
+import Account from "./pages/Account";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <MemoAI />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/account"
+                element={
+                  <ProtectedRoute>
+                    <Account />
                   </ProtectedRoute>
                 }
               />

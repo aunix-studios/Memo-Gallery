@@ -60,8 +60,22 @@ export default function Signup() {
 
     setLoading(true);
 
+    const getAccounts = () => JSON.parse(localStorage.getItem('device_accounts') || '[]') as string[];
+    const setAccounts = (arr: string[]) => localStorage.setItem('device_accounts', JSON.stringify(Array.from(new Set(arr)).slice(0, 5)));
+
     try {
+      const emailKey = email.trim().toLowerCase();
+      const accounts = getAccounts();
+      if (!accounts.includes(emailKey) && accounts.length >= 5) {
+        toast.error('You can keep max 5 accounts on this device. Remove one to continue.');
+        setLoading(false);
+        return;
+      }
+
       await signup(email, password);
+      const updated = getAccounts();
+      updated.push(emailKey);
+      setAccounts(updated);
       toast.success('Account created successfully!');
       navigate('/gallery');
     } catch (error: any) {

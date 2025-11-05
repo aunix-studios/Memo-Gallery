@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
-const VALID_IMAGE_FORMATS = ['image/jpeg', 'image/png', 'image/webp'];
+const VALID_IMAGE_FORMATS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
 function validateBase64Image(base64String: string): { valid: boolean; error?: string } {
   if (!base64String.startsWith('data:image/')) {
@@ -187,9 +187,7 @@ serve(async (req) => {
       
       // Refund credits on failure
       await supabase
-        .from('user_credits')
-        .update({ credits: currentCredits + 10 })
-        .eq('user_id', user.id);
+        .rpc('deduct_credits', { p_user_id: user.id, p_amount: -10 });
       
       throw new Error('Failed to edit image');
     }
@@ -202,9 +200,7 @@ serve(async (req) => {
       
       // Refund credits on failure
       await supabase
-        .from('user_credits')
-        .update({ credits: currentCredits + 10 })
-        .eq('user_id', user.id);
+        .rpc('deduct_credits', { p_user_id: user.id, p_amount: -10 });
       
       throw new Error('No edited image returned from AI');
     }

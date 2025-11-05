@@ -108,25 +108,42 @@ export default function Upload() {
             video.src = URL.createObjectURL(file);
           });
         } else {
-          // Handle image
-          return new Promise<PreviewImage>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
+          // Handle image (convert HEIC/HEIF to JPEG for compatibility)
+          try {
+            let imgFile = file;
+
+            if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+              const heic2any = (await import('heic2any')).default as any;
+              const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+              const jpegBlob = converted instanceof Blob ? converted : new Blob([converted], { type: 'image/jpeg' });
+              imgFile = new File([jpegBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+            }
+
+            const dataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(imgFile);
+            });
+
+            const dims = await new Promise<{w:number;h:number}>((resolve) => {
               const img = new Image();
-              img.onload = () => {
-                resolve({
-                  id: Math.random().toString(36).substr(2, 9),
-                  file,
-                  preview: e.target?.result as string,
-                  width: img.width,
-                  height: img.height,
-                  type: 'image',
-                });
-              };
-              img.src = e.target?.result as string;
+              img.onload = () => resolve({ w: img.width, h: img.height });
+              img.src = dataUrl;
+            });
+
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              file: imgFile,
+              preview: dataUrl,
+              width: dims.w,
+              height: dims.h,
+              type: 'image' as const,
             };
-            reader.readAsDataURL(file);
-          });
+          } catch (err) {
+            console.error('Image load error:', err);
+            toast.error(`Failed to load ${file.name}`);
+            throw err;
+          }
         }
       })
     );
@@ -137,6 +154,16 @@ export default function Upload() {
   const startCamera = async () => {
     setRequestingCamera(true);
     try {
+      // Ask user before requesting permission on first use
+      const asked = localStorage.getItem('camera_permission_granted') === 'true';
+      if (!asked) {
+        const proceed = window.confirm('Allow camera access to take photos? You can change this later in your browser settings.');
+        if (!proceed) {
+          setRequestingCamera(false);
+          return;
+        }
+      }
+
       // Check if mediaDevices is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         toast.error('Camera not supported on this device');
@@ -158,6 +185,7 @@ export default function Upload() {
       
       toast.dismiss();
       setStream(mediaStream);
+      localStorage.setItem('camera_permission_granted', 'true');
       setCameraMode(true);
       toast.success('Camera ready!');
     } catch (error: any) {

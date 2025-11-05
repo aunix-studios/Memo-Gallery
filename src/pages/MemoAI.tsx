@@ -185,18 +185,33 @@ export default function MemoAI() {
     setShowSaveDialog(true);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    let finalFile = file;
+    // Convert HEIC/HEIF to JPEG
+    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+      try {
+        const heic2any = (await import('heic2any')).default as any;
+        const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+        const jpegBlob = converted instanceof Blob ? converted : new Blob([converted], { type: 'image/jpeg' });
+        finalFile = new File([jpegBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+      } catch (err) {
+        console.error('HEIC conversion failed:', err);
+        toast.error('Unsupported image format. Please use JPG/PNG/WEBP.');
+        return;
+      }
+    }
+
+    if (!finalFile.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
 
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(finalFile);
     setSourceImage(url);
-    setSourceBlob(file);
+    setSourceBlob(finalFile);
     setEditedImage(null);
     setMode('edit');
     toast.success('Image loaded! Add an edit prompt below.');
