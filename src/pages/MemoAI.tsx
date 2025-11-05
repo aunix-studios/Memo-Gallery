@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Download, Share2, FolderPlus, ArrowLeft, Coins, Upload, Image as ImageIcon, Wand2 } from 'lucide-react';
+import { Loader2, Sparkles, Download, Share2, FolderPlus, ArrowLeft, Coins, Upload, Image as ImageIcon, Wand2, User } from 'lucide-react';
 import { saveImage } from '@/lib/indexedDB';
 import {
   Dialog,
@@ -376,10 +376,20 @@ export default function MemoAI() {
             </div>
           </div>
           
-          <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
-            <Coins className="h-5 w-5 text-primary" />
-            <span className="font-semibold">{credits.toLocaleString()}</span>
-            <span className="text-xs text-muted-foreground">credits</span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/account')}
+              title="Account"
+            >
+              <User className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
+              <Coins className="h-5 w-5 text-primary" />
+              <span className="font-semibold">{credits.toLocaleString()}</span>
+              <span className="text-xs text-muted-foreground">credits</span>
+            </div>
           </div>
         </div>
       </header>

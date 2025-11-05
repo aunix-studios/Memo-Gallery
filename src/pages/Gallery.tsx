@@ -27,6 +27,7 @@ import {
   Play,
   Heart,
   Filter,
+  User,
 } from 'lucide-react';
 import { getAllImages, getAllCategories, deleteImages, toggleFavorite } from '@/lib/indexedDB';
 import { toast } from 'sonner';
@@ -238,6 +239,9 @@ export default function Gallery() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Button variant="outline" size="icon" onClick={() => navigate('/account')} title="Account">
+                <User className="h-5 w-5" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
               </Button>

@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ArrowLeft, Upload as UploadIcon, Plus, Loader2, X, Camera, RefreshCw, Globe } from 'lucide-react';
+import { ArrowLeft, Upload as UploadIcon, Plus, Loader2, X, Camera, RefreshCw, Globe, User } from 'lucide-react';
 import { saveImage, saveCategory, getAllCategories, updateCategoryCounts } from '@/lib/indexedDB';
 import { toast } from 'sonner';
 
@@ -392,25 +392,30 @@ export default function Upload() {
               </Button>
               <h1 className="text-2xl font-bold">{t('uploadPhotos')}</h1>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Globe className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="glass max-h-[400px] overflow-y-auto">
-                {availableLanguages.map((lang) => (
-                  <DropdownMenuItem
-                    key={lang.code}
-                    onClick={() => setLanguage(lang.code)}
-                    className={language === lang.code ? 'bg-primary/20' : ''}
-                  >
-                    <span className="mr-2">{lang.flag}</span>
-                    {lang.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Globe className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="glass max-h-[400px] overflow-y-auto">
+                  {availableLanguages.map((lang) => (
+                    <DropdownMenuItem
+                      key={lang.code}
+                      onClick={() => setLanguage(lang.code)}
+                      className={language === lang.code ? 'bg-primary/20' : ''}
+                    >
+                      <span className="mr-2">{lang.flag}</span>
+                      {lang.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="outline" size="icon" onClick={() => navigate('/account')} title="Account">
+                <User className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>

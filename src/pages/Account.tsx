@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, User } from 'lucide-react';
 
 export default function Account() {
   const { user, logout } = useAuth();
@@ -26,11 +27,24 @@ export default function Account() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen container mx-auto px-4 py-8">
-      <Card className="max-w-xl mx-auto glass">
-        <CardHeader>
-          <CardTitle>My Account</CardTitle>
-        </CardHeader>
+    <div className="min-h-screen pb-20">
+      <header className="glass border-b border-border sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/gallery')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <User className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold">My Account</h1>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-8">
+        <Card className="max-w-xl mx-auto glass">
+          <CardHeader>
+            <CardTitle>Account Details</CardTitle>
+          </CardHeader>
         <CardContent className="space-y-6">
           <div>
             <p className="text-sm text-muted-foreground">Signed in as</p>
@@ -60,6 +74,7 @@ export default function Account() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
