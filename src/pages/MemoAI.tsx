@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/contexts/LanguageContext';
 import GallerySelector from '@/components/GallerySelector';
+import AIHistory from '@/components/AIHistory';
 
 export default function MemoAI() {
   const navigate = useNavigate();
@@ -95,8 +96,9 @@ export default function MemoAI() {
     }
   };
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) {
+  const handleGenerate = async (customPrompt?: string) => {
+    const finalPrompt = customPrompt || prompt;
+    if (!finalPrompt.trim()) {
       toast.error('Please enter a prompt');
       return;
     }
@@ -108,10 +110,14 @@ export default function MemoAI() {
 
     setLoading(true);
     setGeneratedImage(null);
+    if (customPrompt) {
+      setPrompt(customPrompt);
+      setMode('generate');
+    }
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-ai-image', {
-        body: { prompt: prompt.trim() }
+        body: { prompt: finalPrompt.trim() }
       });
 
       if (error) throw error;
@@ -401,29 +407,36 @@ export default function MemoAI() {
             </div>
           </div>
           
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/settings')}
-                title="Settings"
-              >
-                <Settings className="h-5 w-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/account')}
-                title="Account"
-              >
-                <User className="h-5 w-5" />
-              </Button>
-              <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
-                <Coins className="h-5 w-5 text-primary" />
-                <span className="font-semibold">{credits.toLocaleString()}</span>
-                <span className="text-xs text-muted-foreground">credits</span>
-              </div>
+          <div className="flex items-center gap-2">
+            {user && (
+              <AIHistory
+                userId={user.id}
+                onRerun={(prompt) => handleGenerate(prompt)}
+                onVariation={(prompt) => handleGenerate(prompt)}
+              />
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/settings')}
+              title="Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/account')}
+              title="Account"
+            >
+              <User className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
+              <Coins className="h-5 w-5 text-primary" />
+              <span className="font-semibold">{credits.toLocaleString()}</span>
+              <span className="text-xs text-muted-foreground">credits</span>
             </div>
+          </div>
         </div>
       </header>
 
@@ -486,7 +499,7 @@ export default function MemoAI() {
               </div>
 
               <Button
-                onClick={handleGenerate}
+                onClick={() => handleGenerate()}
                 disabled={loading || !prompt.trim() || credits < 10}
                 className="w-full"
                 size="lg"
