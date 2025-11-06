@@ -7,8 +7,8 @@ const corsHeaders = {
 };
 
 const DAILY_LIMIT = 20;
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
-const VALID_IMAGE_FORMATS = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_IMAGE_SIZE = 25 * 1024 * 1024; // 25MB
+const VALID_IMAGE_FORMATS = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
 function validateBase64Image(base64String: string): { valid: boolean; error?: string; size?: number } {
   if (!base64String.startsWith('data:image/')) {
@@ -29,7 +29,7 @@ function validateBase64Image(base64String: string): { valid: boolean; error?: st
   const sizeInBytes = (base64Data.length * 3) / 4;
   
   if (sizeInBytes > MAX_IMAGE_SIZE) {
-    return { valid: false, error: `Image too large: ${(sizeInBytes / 1024 / 1024).toFixed(2)}MB (max 10MB)` };
+    return { valid: false, error: `Image too large: ${(sizeInBytes / 1024 / 1024).toFixed(2)}MB (max 25MB)` };
   }
 
   return { valid: true, size: sizeInBytes };

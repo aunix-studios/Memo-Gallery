@@ -132,6 +132,25 @@ export default function HowToUse() {
           </CardContent>
         </Card>
 
+        {/* AI Studio Guide */}
+        <Card className="glass border-primary/20 animate-fade-in" style={{ animationDelay: '0.35s' }}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-primary">
+              <span className="text-2xl">🎨</span>
+              AI Studio (All AI tools in one place)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-muted-foreground">
+            <p>Use Memo AI to generate, enhance, and edit images in one unified page.</p>
+            <ul className="list-disc pl-6 space-y-1">
+              <li>Type your idea and tap Generate to create new images.</li>
+              <li>Use the + button in the prompt box to pick a photo from your phone or Memo Gallery.</li>
+              <li>Switch to the Edit tab to apply edits or one-tap Enhance.</li>
+              <li>Save results to your gallery, share, or download.</li>
+            </ul>
+          </CardContent>
+        </Card>
+
         {/* Back Button */}
         <Button
           onClick={() => navigate('/gallery')}

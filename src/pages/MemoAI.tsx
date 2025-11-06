@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Download, Share2, FolderPlus, ArrowLeft, Coins, Upload, Image as ImageIcon, Wand2, User } from 'lucide-react';
+import { Loader2, Sparkles, Download, Share2, FolderPlus, ArrowLeft, Coins, Upload, Image as ImageIcon, Wand2, User, Plus, Settings } from 'lucide-react';
 import { saveImage } from '@/lib/indexedDB';
 import {
   Dialog,
@@ -25,6 +25,7 @@ export default function MemoAI() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const plusFileInputRef = useRef<HTMLInputElement>(null);
   
   // Mode state
   const [mode, setMode] = useState<'generate' | 'edit'>('generate');
@@ -209,9 +210,33 @@ export default function MemoAI() {
       return;
     }
 
-    const url = URL.createObjectURL(finalFile);
+    // Compress large images client-side to avoid edge function limits
+    const compressIfNeeded = async (blob: Blob) => {
+      if (blob.size <= 9.5 * 1024 * 1024) return blob; // ~9.5MB
+      try {
+        const imgBitmap = await createImageBitmap(blob);
+        const maxDim = 2048;
+        const ratio = Math.min(1, maxDim / Math.max(imgBitmap.width, imgBitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(imgBitmap.width * ratio);
+        canvas.height = Math.round(imgBitmap.height * ratio);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return blob;
+        ctx.drawImage(imgBitmap, 0, 0, canvas.width, canvas.height);
+        const compressed = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.85)
+        );
+        return compressed || blob;
+      } catch {
+        return blob;
+      }
+    };
+
+    const maybeCompressed = await compressIfNeeded(finalFile);
+
+    const url = URL.createObjectURL(maybeCompressed);
     setSourceImage(url);
-    setSourceBlob(finalFile);
+    setSourceBlob(new File([maybeCompressed], finalFile.name.replace(/\.(png|webp)$/i, '.jpg')));
     setEditedImage(null);
     setMode('edit');
     toast.success('Image loaded! Add an edit prompt below.');
@@ -246,7 +271,7 @@ export default function MemoAI() {
         };
       });
       reader.readAsDataURL(sourceBlob);
-      const imageData = await base64Promise;
+      let imageData = await base64Promise;
 
       // Get device ID
       let deviceId = localStorage.getItem('device_id');
@@ -376,21 +401,29 @@ export default function MemoAI() {
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/account')}
-              title="Account"
-            >
-              <User className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
-              <Coins className="h-5 w-5 text-primary" />
-              <span className="font-semibold">{credits.toLocaleString()}</span>
-              <span className="text-xs text-muted-foreground">credits</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/settings')}
+                title="Settings"
+              >
+                <Settings className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/account')}
+                title="Account"
+              >
+                <User className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
+                <Coins className="h-5 w-5 text-primary" />
+                <span className="font-semibold">{credits.toLocaleString()}</span>
+                <span className="text-xs text-muted-foreground">credits</span>
+              </div>
             </div>
-          </div>
         </div>
       </header>
 
@@ -413,13 +446,39 @@ export default function MemoAI() {
             <TabsContent value="generate" className="space-y-4 mt-6">
               <div>
                 <Label htmlFor="prompt">Describe your image</Label>
-                <Textarea
-                  id="prompt"
-                  placeholder="A beautiful sunset over mountains, vibrant colors, detailed landscape..."
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[100px] mt-2"
-                  maxLength={500}
+                <div className="relative">
+                  <Textarea
+                    id="prompt"
+                    placeholder="A beautiful sunset over mountains, vibrant colors, detailed landscape..."
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    className="min-h-[100px] mt-2 pr-12"
+                    maxLength={500}
+                  />
+                  <div className="absolute right-2 bottom-2 flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Add image"
+                      onClick={() => plusFileInputRef.current?.click()}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setShowGallerySelector(true); setMode('edit'); }}
+                    >
+                      From Gallery
+                    </Button>
+                  </div>
+                </div>
+                <input
+                  ref={plusFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   {prompt.length}/500 characters

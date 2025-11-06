@@ -14,6 +14,7 @@ import HowToUse from "./pages/HowToUse";
 import MemoAI from "./pages/MemoAI";
 import NotFound from "./pages/NotFound";
 import Account from "./pages/Account";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Account />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
                   </ProtectedRoute>
                 }
               />

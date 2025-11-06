@@ -167,3 +167,9 @@ export async function updateCategoryCounts() {
     tx.done,
   ]);
 }
+
+export async function clearAllData() {
+  const db = await getDB();
+  await db.clear('images');
+  await db.clear('categories');
+}
