@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, Sparkles, Download, Share2, FolderPlus, ArrowLeft, Coins, User, Settings } from 'lucide-react';
 import { saveImage } from '@/lib/indexedDB';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -301,7 +302,27 @@ export default function MemoAI() {
             Credits reset daily at midnight • {Math.floor(credits / 10)} images remaining
           </p>
 
-          {generatedImage && (
+          {loading && (
+            <div className="space-y-4 mt-6 animate-fade-in">
+              <div className="relative rounded-lg overflow-hidden border bg-card">
+                <Skeleton className="w-full aspect-square" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-sm">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  <div className="text-center space-y-2">
+                    <p className="text-lg font-semibold">Creating your masterpiece...</p>
+                    <p className="text-sm text-muted-foreground">This may take 10-30 seconds</p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            </div>
+          )}
+
+          {!loading && generatedImage && (
             <div className="space-y-4 mt-6 animate-scale-in">
               <div className="relative rounded-lg overflow-hidden border bg-card card-hover">
                 <img
