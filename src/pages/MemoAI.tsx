@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, Download, Share2, FolderPlus, ArrowLeft, Coins, Upload, Image as ImageIcon, Wand2, User, Plus, Settings } from 'lucide-react';
+import { Loader2, Sparkles, Download, Share2, FolderPlus, ArrowLeft, Coins, User, Settings } from 'lucide-react';
 import { saveImage } from '@/lib/indexedDB';
 import {
   Dialog,
@@ -16,37 +16,23 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/contexts/LanguageContext';
-import GallerySelector from '@/components/GallerySelector';
 import AIHistory from '@/components/AIHistory';
+import PromptTemplates from '@/components/PromptTemplates';
 
 export default function MemoAI() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useLanguage();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const plusFileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Mode state
-  const [mode, setMode] = useState<'generate' | 'edit'>('generate');
   
   // Generation state
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   
-  // Edit mode state
-  const [sourceImage, setSourceImage] = useState<string | null>(null);
-  const [sourceBlob, setSourceBlob] = useState<Blob | null>(null);
-  const [editPrompt, setEditPrompt] = useState('');
-  const [editedImage, setEditedImage] = useState<string | null>(null);
-  const [enhancing, setEnhancing] = useState(false);
-  
   // UI state
   const [credits, setCredits] = useState<number>(100000);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showGallerySelector, setShowGallerySelector] = useState(false);
   const [imageName, setImageName] = useState('');
   const [imageCategory, setImageCategory] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
@@ -112,7 +98,6 @@ export default function MemoAI() {
     setGeneratedImage(null);
     if (customPrompt) {
       setPrompt(customPrompt);
-      setMode('generate');
     }
 
     try {
@@ -142,16 +127,15 @@ export default function MemoAI() {
   };
 
   const handleDownload = async () => {
-    const imageToDownload = mode === 'generate' ? generatedImage : editedImage;
-    if (!imageToDownload) return;
+    if (!generatedImage) return;
 
     try {
-      const response = await fetch(imageToDownload);
+      const response = await fetch(generatedImage);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `memo-ai-${mode}-${Date.now()}.png`;
+      a.download = `memo-ai-generated-${Date.now()}.png`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -164,19 +148,18 @@ export default function MemoAI() {
   };
 
   const handleShare = async () => {
-    const imageToShare = mode === 'generate' ? generatedImage : editedImage;
-    if (!imageToShare) return;
+    if (!generatedImage) return;
 
     try {
-      const response = await fetch(imageToShare);
+      const response = await fetch(generatedImage);
       const blob = await response.blob();
-      const file = new File([blob], `memo-ai-${mode}-${Date.now()}.png`, { type: 'image/png' });
+      const file = new File([blob], `memo-ai-generated-${Date.now()}.png`, { type: 'image/png' });
 
       if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `Memo AI ${mode === 'generate' ? 'Generated' : 'Edited'} Image`,
-          text: mode === 'generate' ? `Generated with prompt: ${prompt}` : `Edited with AI`
+          title: 'Memo AI Generated Image',
+          text: `Generated with prompt: ${prompt}`
         });
         toast.success('Image shared!');
       } else {
@@ -192,181 +175,14 @@ export default function MemoAI() {
     setShowSaveDialog(true);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    let finalFile = file;
-    // Convert HEIC/HEIF to JPEG
-    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-      try {
-        const heic2any = (await import('heic2any')).default as any;
-        const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
-        const jpegBlob = converted instanceof Blob ? converted : new Blob([converted], { type: 'image/jpeg' });
-        finalFile = new File([jpegBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
-      } catch (err) {
-        console.error('HEIC conversion failed:', err);
-        toast.error('Unsupported image format. Please use JPG/PNG/WEBP.');
-        return;
-      }
-    }
-
-    if (!finalFile.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-
-    // Compress large images client-side to avoid edge function limits
-    const compressIfNeeded = async (blob: Blob) => {
-      if (blob.size <= 9.5 * 1024 * 1024) return blob; // ~9.5MB
-      try {
-        const imgBitmap = await createImageBitmap(blob);
-        const maxDim = 2048;
-        const ratio = Math.min(1, maxDim / Math.max(imgBitmap.width, imgBitmap.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(imgBitmap.width * ratio);
-        canvas.height = Math.round(imgBitmap.height * ratio);
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return blob;
-        ctx.drawImage(imgBitmap, 0, 0, canvas.width, canvas.height);
-        const compressed = await new Promise<Blob | null>((resolve) =>
-          canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.85)
-        );
-        return compressed || blob;
-      } catch {
-        return blob;
-      }
-    };
-
-    const maybeCompressed = await compressIfNeeded(finalFile);
-
-    const url = URL.createObjectURL(maybeCompressed);
-    setSourceImage(url);
-    setSourceBlob(new File([maybeCompressed], finalFile.name.replace(/\.(png|webp)$/i, '.jpg')));
-    setEditedImage(null);
-    setMode('edit');
-    toast.success('Image loaded! Add an edit prompt below.');
-  };
-
-  const handleGallerySelect = (url: string, blob: Blob) => {
-    setSourceImage(url);
-    setSourceBlob(blob);
-    setEditedImage(null);
-    setMode('edit');
-    toast.success('Image selected! Add an edit prompt below.');
-  };
-
-  const handleEnhance = async () => {
-    if (!sourceBlob) {
-      toast.error('Please select an image first');
-      return;
-    }
-
-    if (credits < 5) {
-      toast.error('Insufficient credits. Need 5 credits to enhance.');
-      return;
-    }
-
-    setEnhancing(true);
-    try {
-      // Convert blob to base64 with full data URL
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onloadend = () => {
-          resolve(reader.result as string); // Keep full data URL
-        };
-      });
-      reader.readAsDataURL(sourceBlob);
-      let imageData = await base64Promise;
-
-      // Get device ID
-      let deviceId = localStorage.getItem('device_id');
-      if (!deviceId) {
-        deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('device_id', deviceId);
-      }
-
-      const { data, error } = await supabase.functions.invoke('enhance-image', {
-        body: { 
-          imageData: imageData,
-          deviceId: deviceId
-        }
-      });
-
-      if (error) throw error;
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-
-      setEditedImage(data.enhancedImage);
-      setCredits(prev => prev - 5);
-      toast.success('Image enhanced! 5 credits used.');
-    } catch (error: any) {
-      console.error('Enhancement error:', error);
-      toast.error(error.message || 'Failed to enhance image');
-    } finally {
-      setEnhancing(false);
-    }
-  };
-
-  const handleEdit = async () => {
-    if (!sourceBlob || !editPrompt.trim()) {
-      toast.error('Please select an image and add an edit prompt');
-      return;
-    }
-
-    if (credits < 10) {
-      toast.error('Insufficient credits. Need 10 credits to edit.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Convert blob to base64 with full data URL
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onloadend = () => {
-          resolve(reader.result as string); // Keep full data URL
-        };
-      });
-      reader.readAsDataURL(sourceBlob);
-      const imageData = await base64Promise;
-
-      const { data, error } = await supabase.functions.invoke('edit-image', {
-        body: { 
-          imageData: imageData,
-          prompt: editPrompt.trim()
-        }
-      });
-
-      if (error) throw error;
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-
-      setEditedImage(data.editedImage);
-      setCredits(data.credits);
-      toast.success(`Image edited! ${data.credits} credits remaining`);
-    } catch (error: any) {
-      console.error('Edit error:', error);
-      toast.error(error.message || 'Failed to edit image');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const saveToGallery = async () => {
-    const imageToSave = mode === 'generate' ? generatedImage : editedImage;
-    
-    if (!imageToSave || !imageName.trim() || !imageCategory.trim()) {
+    if (!generatedImage || !imageName.trim() || !imageCategory.trim()) {
       toast.error('Please fill in all fields');
       return;
     }
 
     try {
-      const response = await fetch(imageToSave);
+      const response = await fetch(generatedImage);
       const blob = await response.blob();
       
       const img = new Image();
@@ -443,258 +259,76 @@ export default function MemoAI() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 animate-fade-in">
         <div className="max-w-4xl mx-auto space-y-8">
-          <Tabs value={mode} onValueChange={(v) => setMode(v as 'generate' | 'edit')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="generate">
-                <Sparkles className="mr-2 h-4 w-4" />
-                Generate
-              </TabsTrigger>
-              <TabsTrigger value="edit">
-                <Wand2 className="mr-2 h-4 w-4" />
-                Edit Image
-              </TabsTrigger>
-            </TabsList>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="prompt">Describe your image</Label>
+              <PromptTemplates onSelectTemplate={(template) => setPrompt(template)} />
+            </div>
+            
+            <Textarea
+              id="prompt"
+              placeholder="A beautiful sunset over mountains, vibrant colors, detailed landscape..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="min-h-[120px]"
+              maxLength={500}
+            />
+            <p className="text-xs text-muted-foreground">
+              {prompt.length}/500 characters
+            </p>
+          </div>
 
-            {/* Generate Tab */}
-            <TabsContent value="generate" className="space-y-4 mt-6">
-              <div>
-                <Label htmlFor="prompt">Describe your image</Label>
-                <div className="relative">
-                  <Textarea
-                    id="prompt"
-                    placeholder="A beautiful sunset over mountains, vibrant colors, detailed landscape..."
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    className="min-h-[100px] mt-2 pr-12"
-                    maxLength={500}
-                  />
-                  <div className="absolute right-2 bottom-2 flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      title="Add image"
-                      onClick={() => plusFileInputRef.current?.click()}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => { setShowGallerySelector(true); setMode('edit'); }}
-                    >
-                      From Gallery
-                    </Button>
-                  </div>
-                </div>
-                <input
-                  ref={plusFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
+          <Button
+            onClick={() => handleGenerate()}
+            disabled={loading || !prompt.trim() || credits < 10}
+            className="w-full"
+            size="lg"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-5 w-5" />
+                Generate Image (10 credits)
+              </>
+            )}
+          </Button>
+
+          <p className="text-center text-sm text-muted-foreground">
+            Credits reset daily at midnight • {Math.floor(credits / 10)} images remaining
+          </p>
+
+          {generatedImage && (
+            <div className="space-y-4 mt-6 animate-scale-in">
+              <div className="relative rounded-lg overflow-hidden border bg-card card-hover">
+                <img
+                  src={generatedImage}
+                  alt="Generated"
+                  className="w-full h-auto transition-transform hover:scale-105"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {prompt.length}/500 characters
-                </p>
               </div>
 
-              <Button
-                onClick={() => handleGenerate()}
-                disabled={loading || !prompt.trim() || credits < 10}
-                className="w-full"
-                size="lg"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-5 w-5" />
-                    Generate Image (10 credits)
-                  </>
-                )}
-              </Button>
-
-              <p className="text-center text-sm text-muted-foreground">
-                Credits reset daily at midnight • {Math.floor(credits / 10)} images remaining
-              </p>
-
-              {generatedImage && (
-                <div className="space-y-4 mt-6 animate-scale-in">
-                  <div className="relative rounded-lg overflow-hidden border bg-card card-hover">
-                    <img
-                      src={generatedImage}
-                      alt="Generated"
-                      className="w-full h-auto transition-transform hover:scale-105"
-                    />
-                  </div>
-
-                  <div className="flex gap-2 flex-wrap">
-                    <Button onClick={handleDownload} variant="outline" className="flex-1">
-                      <Download className="mr-2 h-4 w-4" />
-                      Download
-                    </Button>
-                    <Button onClick={handleShare} variant="outline" className="flex-1">
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Share
-                    </Button>
-                    <Button onClick={handleSaveToGallery} variant="default" className="flex-1">
-                      <FolderPlus className="mr-2 h-4 w-4" />
-                      Add to Gallery
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Edit Tab */}
-            <TabsContent value="edit" className="space-y-4 mt-6">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-
-              <div className="space-y-4">
-                <Label>Select Image Source</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="h-24"
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Upload className="h-8 w-8" />
-                      <span>Upload Photo</span>
-                    </div>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => setShowGallerySelector(true)}
-                    className="h-24"
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <ImageIcon className="h-8 w-8" />
-                      <span>From Gallery</span>
-                    </div>
-                  </Button>
-                </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button onClick={handleDownload} variant="outline" className="flex-1">
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </Button>
+                <Button onClick={handleShare} variant="outline" className="flex-1">
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share
+                </Button>
+                <Button onClick={handleSaveToGallery} variant="default" className="flex-1">
+                  <FolderPlus className="mr-2 h-4 w-4" />
+                  Add to Gallery
+                </Button>
               </div>
-
-              {sourceImage && (
-                <>
-                  <div className="space-y-4 animate-fade-in">
-                    <Label>Original Image</Label>
-                    <div className="relative rounded-lg overflow-hidden border bg-card card-hover">
-                      <img
-                        src={sourceImage}
-                        alt="Source"
-                        className="w-full h-auto transition-transform hover:scale-105"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleEnhance}
-                      disabled={enhancing || credits < 5}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      {enhancing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Enhancing...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Quick Enhance (5 credits)
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="editPrompt">Edit Instructions (Optional)</Label>
-                    <Textarea
-                      id="editPrompt"
-                      placeholder="Make it more vibrant, add sunset lighting, remove background..."
-                      value={editPrompt}
-                      onChange={(e) => setEditPrompt(e.target.value)}
-                      className="min-h-[80px] mt-2"
-                      maxLength={300}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {editPrompt.length}/300 characters
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={handleEdit}
-                    disabled={loading || credits < 10}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Editing...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="mr-2 h-5 w-5" />
-                        Edit with AI (10 credits)
-                      </>
-                    )}
-                  </Button>
-
-                  {editedImage && (
-                    <div className="space-y-4 mt-6 animate-scale-in">
-                      <Label>Edited Result</Label>
-                      <div className="relative rounded-lg overflow-hidden border bg-card card-hover">
-                        <img
-                          src={editedImage}
-                          alt="Edited"
-                          className="w-full h-auto transition-transform hover:scale-105"
-                        />
-                      </div>
-
-                      <div className="flex gap-2 flex-wrap">
-                        <Button onClick={handleDownload} variant="outline" className="flex-1">
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
-                        </Button>
-                        <Button onClick={handleShare} variant="outline" className="flex-1">
-                          <Share2 className="mr-2 h-4 w-4" />
-                          Share
-                        </Button>
-                        <Button onClick={handleSaveToGallery} variant="default" className="flex-1">
-                          <FolderPlus className="mr-2 h-4 w-4" />
-                          Add to Gallery
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
         </div>
       </main>
-
-      {/* Gallery Selector */}
-      <GallerySelector
-        open={showGallerySelector}
-        onOpenChange={setShowGallerySelector}
-        onSelectImage={handleGallerySelect}
-      />
 
       {/* Save to Gallery Dialog */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
